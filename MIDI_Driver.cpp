@@ -91,8 +91,8 @@ void MIDI_C::Convert(struct MIDI2_com_t *msgOut, struct MIDI1_msg_t *msgIn){
 }
 
 uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_voice_t* msgIn){
-	dataOut[0] = (0x4 << 4) | msgIn->group;
-	dataOut[1] = ((uint8_t) msgIn->status << 4) | msgIn->channel;
+	dataOut[0] = (((uint8_t) MIDI_MT_E::Voice2) << 4) | (msgIn->group & 0x0f);
+	dataOut[1] = (((uint8_t) msgIn->status) << 4) | (msgIn->channel & 0x0f);
 	switch (msgIn->status){
 		case MIDI2_VOICE_E::RegNoteControl:
 		case MIDI2_VOICE_E::AssNoteControl:
