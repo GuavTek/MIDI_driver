@@ -44,6 +44,7 @@ void MIDI_C::Convert (struct MIDI1_msg_t *msgOut, struct MIDI2_voice_t *msgIn){
 }
 
 void MIDI_C::Convert(struct MIDI2_voice_t *msgOut, struct MIDI1_msg_t *msgIn){
+	msgOut->group = msgIn->group;
 	msgOut->channel = msgIn->channel;
 	msgOut->status = (MIDI2_VOICE_E) msgIn->status;
 	switch (msgIn->status)
@@ -143,7 +144,7 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_voice_t* msgIn){
 }
 
 uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_data128_t* msgIn){
-	dataOut[0] = (0x5 << 4) | msgIn->group;
+	dataOut[0] = (((uint8_t) MIDI_MT_E::Data128) << 4) | (msgIn->group & 0x0f);
 	dataOut[1] = (uint8_t) msgIn->status << 4;
 	uint8_t off = 2;
 	if ((msgIn->status == MIDI2_DATA128_E::MixHead) || (msgIn->status == MIDI2_DATA128_E::MixPay)) {
@@ -163,8 +164,8 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_data128_t* msgIn){
 uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_data64_t* msgIn, uint8_t ver){
 	uint8_t i = 0;
 	if (ver == 2) {
-		dataOut[i++] = (0x3 << 4) | msgIn->group;
-		dataOut[i++] = ((uint8_t) msgIn->status << 4) | msgIn->numBytes;
+		dataOut[i++] = (((uint8_t) MIDI_MT_E::Data64) << 4) | (msgIn->group & 0x0f);
+		dataOut[i++] = ((uint8_t) msgIn->status << 4) | (msgIn->numBytes 0x0f);
 	} else if (msgIn->status == MIDI2_DATA64_E::Single || msgIn->status == MIDI2_DATA64_E::Start) {
 		dataOut[i++] = 0xf0;		// Sysex start
 	}
@@ -187,7 +188,7 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_com_t* msgIn, uint8_t ver){
 	uint8_t i = 0;
 	if (ver == 2) {
 		// UMP format
-		dataOut[i++] = (0x1 << 4) | msgIn->group;
+		dataOut[i++] = (((uint8_t) MIDI_MT_E::RealTime) << 4) | (msgIn->group & 0x0f);
 	}
 	dataOut[i++] = (0xf << 4) | ((uint8_t) msgIn->status);
 	switch (msgIn->status){
@@ -215,7 +216,7 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_com_t* msgIn, uint8_t ver){
 }
 
 uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_util_t* msgIn){
-	dataOut[0] = (0x0 << 4) | msgIn->group;
+	dataOut[0] = (((uint8_t) MIDI_MT_E::Utility) << 4) | (msgIn->group & 0x0f);
 	dataOut[1] = (uint8_t) msgIn->status << 4;
 	dataOut[2] = msgIn->timestamp;	// clk and timestamp should be the same bcs union
 	return 4;
@@ -225,10 +226,10 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI1_msg_t* msgIn, uint8_t ver){
 	uint8_t i = 0;
 	if (ver == 2) {
 		// UMP format
-		dataOut[i++] = (0x2 << 4) | msgIn->group;
+		dataOut[i++] = (((uint8_t) MIDI_MT_E::Voice1) << 4) | (msgIn->group & 0x0f);
 	}
 	
-	dataOut[i++] = ((uint8_t) msgIn->status << 4) | msgIn->channel;
+	dataOut[i++] = ((uint8_t) msgIn->status << 4) | (msgIn->channel & 0x0f);
 	
 	switch(msgIn->status){
 		case MIDI1_STATUS_E::NoteOff:
