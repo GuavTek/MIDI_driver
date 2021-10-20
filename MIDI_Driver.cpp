@@ -438,22 +438,21 @@ void MIDI_C::Decode (char* data, uint8_t length){
 			msgBuffer[msgIndex] = data[i];
 			if (data[i] > 127) {
 				// New command
-				msgIndex = 1;
-				MIDI1_STATUS_E command = (MIDI1_STATUS_E) (*data >> 4);
+				MIDI1_STATUS_E command = (MIDI1_STATUS_E) (data[i] >> 4);
 				switch (command) {
 					case MIDI1_STATUS_E::SysEx:
-						if (*data == 0xf0) {
+						if (data[i] == 0xf0) {
 							// Sysex start
 							msgLength = 8;
 							decodeState = SysexMIDI1;
-						} else if (*data == 0xf7) {
+						} else if (data[i] == 0xf7) {
 							// Sysex end
 							msgLength = msgIndex;
 							//decodeState = NormalMIDI1;
-						} else if ((*data & 0x0f) == 2) {
+						} else if ((data[i] & 0x0f) == 2) {
 							msgLength = 3;
 							decodeState = NormalMIDI1;
-						} else if ((*data & 0x0f) == 3) {
+						} else if ((data[i] & 0x0f) == 3) {
 							msgLength = 2;
 							decodeState = NormalMIDI1;
 						} else {
