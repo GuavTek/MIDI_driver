@@ -471,6 +471,9 @@ void MIDI_C::Decode (char* data, uint8_t length){
 						break;
 				}
 			}
+			if (msgIndex < msgLength) {
+				msgIndex++;
+			}
 			if (msgIndex == msgLength) {
 				// Decode buffered message
 				MIDI1_msg_t tempMsg;
@@ -594,8 +597,6 @@ void MIDI_C::Decode (char* data, uint8_t length){
 				if (MIDI1_p != 0) {
 					MIDI1_p(&tempMsg);
 				}
-			} else if (msgIndex < msgLength) {
-				msgIndex++;
 			}
 		}
 	}
