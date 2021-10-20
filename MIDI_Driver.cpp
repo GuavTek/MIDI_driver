@@ -23,7 +23,7 @@ void MIDI_C::Convert (struct MIDI1_msg_t *msgOut, struct MIDI2_voice_t *msgIn){
 			break;
 		case MIDI2_VOICE_E::Aftertouch:
 			msgOut->key = msgIn->note;
-			msgOut->velocity = msgOut->data >> 25;
+			msgOut->velocity = msgIn->data >> 25;
 			break;
 		case MIDI2_VOICE_E::ProgChange:
 			msgOut->instrument = msgIn->program & 0x7f;
@@ -168,7 +168,7 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_data64_t* msgIn, uint8_t ver)
 	uint8_t i = 0;
 	if (ver == 2) {
 		dataOut[i++] = (((uint8_t) MIDI_MT_E::Data64) << 4) | (msgIn->group & 0x0f);
-		dataOut[i++] = ((uint8_t) msgIn->status << 4) | (msgIn->numBytes 0x0f);
+		dataOut[i++] = ((uint8_t) msgIn->status << 4) | (msgIn->numBytes & 0x0f);
 	} else if (msgIn->status == MIDI2_DATA64_E::Single || msgIn->status == MIDI2_DATA64_E::Start) {
 		dataOut[i++] = 0xf0;		// Sysex start
 	}
