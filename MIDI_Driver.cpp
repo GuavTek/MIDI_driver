@@ -8,33 +8,31 @@
 #include "MIDI_Driver.h"
 
 void MIDI_C::Convert (struct MIDI1_msg_t *msgOut, struct MIDI2_voice_t *msgIn){
+	msgOut->group = msgIn->group;
+	msgOut->channel = msgIn->channel;
+	msgOut->status = (MIDI1_STATUS_E) msgIn->status;
 	switch(msgIn->status){
-		case MIDI2_VOICE_E::RegControl:
-			
-			break;
-		case MIDI2_VOICE_E::AssControl:
-		
-			break;
 		case MIDI2_VOICE_E::NoteOff:
-		
-			break;
 		case MIDI2_VOICE_E::NoteOn:
-		
-			break;
-		case MIDI2_VOICE_E::Aftertouch:
-			
+			msgOut->key = msgIn->note & 0x7f;
+			msgOut->velocity = msgIn->velocity >> 9;
 			break;
 		case MIDI2_VOICE_E::CControl:
-			
+			msgOut->controller = msgIn->controller & 0x7f;
+			msgOut->val = msgIn->data >> 25;
+			break;
+		case MIDI2_VOICE_E::Aftertouch:
+			msgOut->key = msgIn->note;
+			msgOut->velocity = msgOut->data >> 25;
 			break;
 		case MIDI2_VOICE_E::ProgChange:
-			
+			msgOut->instrument = msgIn->program & 0x7f;
 			break;
 		case MIDI2_VOICE_E::ChanPressure:
-			
+			msgOut->pressure = msgIn->data >> 25;
 			break;
 		case MIDI2_VOICE_E::Pitchbend:
-			
+			msgOut->bend = msgIn->data >> 18;
 			break;
 		default:
 			msgOut->status = MIDI1_STATUS_E::Invalid;
@@ -52,24 +50,29 @@ void MIDI_C::Convert(struct MIDI2_voice_t *msgOut, struct MIDI1_msg_t *msgIn){
 		case MIDI1_STATUS_E::NoteOn:
 		case MIDI1_STATUS_E::NoteOff:
 			msgOut->note = msgIn->key;
-			msgOut->velocity = msgIn->velocity;
+			// 7 bit to 16 bit stuffing
+			msgOut->velocity = (((1 << 9) | (1 << 2)) * msgIn->velocity) | (msgIn->velocity >> 5);
 			break;
 		case MIDI1_STATUS_E::Aftertouch:
 			msgOut->note = msgIn->key;
-			msgOut->data = msgIn->velocity; // Needs massaging
+			// 7 bit to 32 bit stuffing
+			msgOut->data = (((1 << 25) | (1 << 18) | (1 << 11) | (1 << 4)) * msgIn->velocity) | (msgIn->velocity >> 3);
 			break;
 		case MIDI1_STATUS_E::CControl:
 			msgOut->controller = msgIn->controller;
-			msgOut->data = msgIn->val;
+			// 7 bit to 32 bit stuffing
+			msgOut->data = (((1 << 25) | (1 << 18) | (1 << 11) | (1 << 4)) * msgIn->val) | (msgIn->val >> 3);
 			break;
 		case MIDI1_STATUS_E::ProgChange:
 			msgOut->program = msgIn->instrument;
 			break;
 		case MIDI1_STATUS_E::ChanPressure:
-			msgOut->data = msgIn->pressure; // Needs conversion
+			// 7 bit to 32 bit stuffing
+			msgOut->data = (((1 << 25) | (1 << 18) | (1 << 11) | (1 << 4)) * msgIn->pressure) | (msgIn->pressure >> 3);
 			break;
 		case MIDI1_STATUS_E::Pitchbend:
-			msgOut->data = msgIn->bend; // Note: needs to be converted
+			// 14 bit to 32 bit stuffing
+			msgOut->data = (((1 << 18) | (1 << 4)) * msgIn->bend) | (msgIn->bend >> 10);
 			break;
 		default:
 			break;
