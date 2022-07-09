@@ -94,9 +94,9 @@ enum class MIDI2_VOICE_E {
 
 struct MIDI1_msg_t
 {
+	uint8_t group;
 	enum MIDI1_STATUS_E status;
 	uint8_t channel;
-	uint8_t group;
 	union{
 		uint16_t bend;
 		struct{uint8_t key; uint8_t velocity; };
@@ -166,6 +166,18 @@ struct MIDI2_voice_t {
 	};
 };
 
+struct MIDI_UMP_t {
+	MIDI_MT_E type;
+	union {
+		MIDI2_util_t util;
+		MIDI2_com_t com;
+		MIDI1_msg_t voice1;
+		MIDI2_data64_t data64;
+		MIDI2_voice_t voice2;
+		MIDI2_data128_t data128;
+	};
+};
+
 class MIDI_C
 {
 public:
@@ -179,6 +191,7 @@ public:
 	static uint8_t Encode(char* dataOut, struct MIDI2_com_t* msgIn, uint8_t ver);
 	static uint8_t Encode(char* dataOut, struct MIDI2_util_t* msgIn);
 	static uint8_t Encode(char* dataOut, struct MIDI1_msg_t* msgIn, uint8_t ver);
+	static uint8_t Encode(char* dataOut, struct MIDI_UMP_t* msgIn, uint8_t ver);
 	void Decode (char* data, uint8_t length);
 	inline void Set_handler(void (*cb) (MIDI2_voice_t*)) {MIDI2_voice_p = cb;};
 	inline void Set_handler(void (*cb) (MIDI2_data128_t*)) {MIDI2_data128_p = cb;};
@@ -186,6 +199,8 @@ public:
 	inline void Set_handler(void (*cb) (MIDI2_com_t*)) {MIDI2_com_p = cb;};
 	inline void Set_handler(void (*cb) (MIDI2_util_t*)) {MIDI2_util_p = cb;};
 	inline void Set_handler(void (*cb) (MIDI1_msg_t*)) {MIDI1_p = cb;};
+	inline void Set_handler(void (*cb) (MIDI_UMP_t*)) {MIDI_UMP_p = cb;};
+	inline uint8_t Get_Version(void) {return MIDIVersion;};
 	MIDI_C(uint8_t InitialVersion){
 		MIDIVersion = InitialVersion;
 		decodeState = Init;
@@ -197,6 +212,7 @@ protected:
 	void (* MIDI2_com_p) (struct MIDI2_com_t* msg);
 	void (* MIDI2_util_p) (struct MIDI2_util_t* msg);
 	void (* MIDI1_p) (struct MIDI1_msg_t* msg);
+	void (* MIDI_UMP_p) (struct MIDI_UMP_t* msg);
 	uint8_t MIDIVersion;
 	enum {
 		Init,
