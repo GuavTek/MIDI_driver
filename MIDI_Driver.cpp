@@ -493,7 +493,7 @@ void MIDI_C::Decode (char* data, uint8_t length){
 		// MIDI 1.0 decoder
 		for (uint8_t i = 0; i < length; i++) {
 			msgBuffer[msgIndex] = data[i];
-			if (data[i] > 127) {
+			if (data[i] & 0x80) {
 				// New command
 				MIDI1_STATUS_E command = (MIDI1_STATUS_E) (data[i] >> 4);
 				switch (command) {
@@ -600,6 +600,11 @@ void MIDI_C::Decode (char* data, uint8_t length){
 						}
 						if (MIDI2_data64_p != 0) {
 							MIDI2_data64_p(&msgData);
+							msgIndex = 0;
+							if (decodeState == NormalMIDI1) {
+								msgLength = -1;
+							}
+							return;
 						}
 					} else if (tempMsg.channel == 7) {
 						MIDI2_data64_t msgData;
@@ -609,6 +614,11 @@ void MIDI_C::Decode (char* data, uint8_t length){
 						decodeState = NormalMIDI1;
 						if (MIDI2_data64_p != 0) {
 							MIDI2_data64_p(&msgData);
+							msgIndex = 0;
+							if (decodeState == NormalMIDI1) {
+								msgLength = -1;
+							}
+							return;
 						}
 					} else {
 						// Common and realtime messages
@@ -621,6 +631,11 @@ void MIDI_C::Decode (char* data, uint8_t length){
 							MIDI2_com_t tempMsg2;
 							Convert(&tempMsg2, &tempMsg);
 							MIDI2_com_p(&tempMsg2);
+							msgIndex = 0;
+							if (decodeState == NormalMIDI1) {
+								msgLength = -1;
+							}
+							return;
 						}
 					}
 					break;
@@ -641,6 +656,11 @@ void MIDI_C::Decode (char* data, uint8_t length){
 						}
 						if (MIDI2_data64_p != 0) {
 							MIDI2_data64_p(&msgData);
+							msgIndex = 0;
+							if (decodeState == NormalMIDI1) {
+								msgLength = -1;
+							}
+							return;
 						}
 					}
 					tempMsg.status = MIDI1_STATUS_E::Invalid;
