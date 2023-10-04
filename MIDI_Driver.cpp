@@ -304,160 +304,166 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI_UMP_t* msgIn, uint8_t ver){
 void MIDI_C::Decode (char* data, uint8_t length){	
 	if (MIDIVersion == 2) {
 		// MIDI 2.0 decoder
-		MIDI_UMP_t msgCurrent;
-		enum MIDI_MT_E msgType;
-		msgType = (MIDI_MT_E) (data[0] >> 4);
-		msgCurrent.type = msgType;
-		
-		if(msgType == MIDI_MT_E::Utility) {
-			msgCurrent.util.group = data[0] & 0x0f;
-			msgCurrent.util.status = (MIDI2_UTIL_E) (data[1] >> 4);
-			if (msgCurrent.util.status == MIDI2_UTIL_E::JRClk) {
-				msgCurrent.util.clk = (data[2] << 8) | data[3];
-			} else if (msgCurrent.util.status == MIDI2_UTIL_E::JRTimestamp) {
-				msgCurrent.util.timestamp = (data[2] << 8) | data[3];
-			}
+		for (uint8_t l = 0; l < length; ){
+			char* inData = &data[l];
+			MIDI_UMP_t msgCurrent;
+			enum MIDI_MT_E msgType;
+			msgType = (MIDI_MT_E) (inData[0] >> 4);
+			msgCurrent.type = msgType;
+			if(msgType == MIDI_MT_E::Utility) {
+				l += 4;
+				msgCurrent.util.group = inData[0] & 0x0f;
+				msgCurrent.util.status = (MIDI2_UTIL_E) (inData[1] >> 4);
+				if (msgCurrent.util.status == MIDI2_UTIL_E::JRClk) {
+					msgCurrent.util.clk = (inData[2] << 8) | inData[3];
+				} else if (msgCurrent.util.status == MIDI2_UTIL_E::JRTimestamp) {
+					msgCurrent.util.timestamp = (inData[2] << 8) | inData[3];
+				}
 			
-			if (MIDI2_util_p != 0) {
-				MIDI2_util_p(&msgCurrent.util);
-			} else if (MIDI_UMP_p != 0)	{
-				MIDI_UMP_p(&msgCurrent);
-			}
-		} else if (msgType == MIDI_MT_E::RealTime) {
-			msgCurrent.com.group = data[0] & 0x0f;
-			msgCurrent.com.status = (MIDI2_COM_E) (data[1] && 0x0f);
-			if (msgCurrent.com.status == MIDI2_COM_E::TimeCode) {
-				msgCurrent.com.timecode = data[2];
-			} else if (msgCurrent.com.status == MIDI2_COM_E::SongPosPoint) {
-				msgCurrent.com.songPos = data[2] | (data[3] << 7);
-			} else if (msgCurrent.com.status == MIDI2_COM_E::SongSel) {
-				msgCurrent.com.songNum = data[2];
-			}
+				if (MIDI2_util_p != 0) {
+					MIDI2_util_p(&msgCurrent.util);
+				} else if (MIDI_UMP_p != 0)	{
+					MIDI_UMP_p(&msgCurrent);
+				}
+			} else if (msgType == MIDI_MT_E::RealTime) {
+				l += 4;
+				msgCurrent.com.group = inData[0] & 0x0f;
+				msgCurrent.com.status = (MIDI2_COM_E) (inData[1] && 0x0f);
+				if (msgCurrent.com.status == MIDI2_COM_E::TimeCode) {
+					msgCurrent.com.timecode = inData[2];
+				} else if (msgCurrent.com.status == MIDI2_COM_E::SongPosPoint) {
+					msgCurrent.com.songPos = inData[2] | (inData[3] << 7);
+				} else if (msgCurrent.com.status == MIDI2_COM_E::SongSel) {
+					msgCurrent.com.songNum = inData[2];
+				}
 			
-			if (MIDI2_com_p != 0) {
-				MIDI2_com_p(&msgCurrent.com);
-			} else if (MIDI_UMP_p != 0) {
-				MIDI_UMP_p(&msgCurrent);
-			}
-		} else if (msgType == MIDI_MT_E::Voice1) {
-			msgCurrent.voice1.group = data[0] & 0x0f;
-			msgCurrent.voice1.status = (MIDI1_STATUS_E) (data[1] >> 4);
-			msgCurrent.voice1.channel = data[1] & 0x0f;
-			switch (msgCurrent.voice1.status){
-				case MIDI1_STATUS_E::Aftertouch:
-				case MIDI1_STATUS_E::NoteOn:
-				case MIDI1_STATUS_E::NoteOff:
-					msgCurrent.voice1.key = data[2];
-					msgCurrent.voice1.velocity = data[3];
-					break;
-				case MIDI1_STATUS_E::CControl:
-					msgCurrent.voice1.controller = data[2];
-					msgCurrent.voice1.val = data[3];
-					break;
-				case MIDI1_STATUS_E::ProgChange:
-					msgCurrent.voice1.instrument = data[2];
-					break;
-				case MIDI1_STATUS_E::ChanPressure:
-					msgCurrent.voice1.pressure = data[2];
-					break;
-				case MIDI1_STATUS_E::Pitchbend:
-					msgCurrent.voice1.bend = data[2] | (data[3] << 7);
-					break;
-				default:
-					msgCurrent.voice1.status = MIDI1_STATUS_E::Invalid;
-					break;
-			}
-			
-			if (msgCurrent.voice1.status == MIDI1_STATUS_E::Invalid) {
-				return;
-			} else if (MIDI1_p != 0) {
-				MIDI1_p(&msgCurrent.voice1);
-			} else if (MIDI_UMP_p != 0) {
-				MIDI_UMP_p(&msgCurrent);
-			}
-		} else if (msgType == MIDI_MT_E::Data64) {
-			msgCurrent.data64.group = data[0] & 0x0f;
-			msgCurrent.data64.status = (MIDI2_DATA64_E) (data[1] >> 4);
-			msgCurrent.data64.numBytes = data[1] & 0x0f;
-			for (uint8_t i = 0; i < (length - 2); i++) {
-				if (i > 5) break;
-				msgCurrent.data64.data[i] = data[i+2];
-			}
-			
-			if (MIDI2_data64_p != 0) {
-				MIDI2_data64_p(&msgCurrent.data64);
-			} else if (MIDI_UMP_p != 0) {
-				MIDI_UMP_p(&msgCurrent);
-			}
-		} else if (msgType == MIDI_MT_E::Voice2) {
-			msgCurrent.voice2.group = data[0] & 0x0f;
-			msgCurrent.voice2.status = (MIDI2_VOICE_E) (data[1] >> 4);
-			msgCurrent.voice2.channel = data[1] & 0x0f;
-			switch (msgCurrent.voice2.status){
-				case MIDI2_VOICE_E::RegNoteControl:
-				case MIDI2_VOICE_E::AssNoteControl:
-					msgCurrent.voice2.note = data[2];
-					msgCurrent.voice2.controller = data[3];
-					msgCurrent.voice2.data = (uint32_t) data[4];
-					break;
-				case MIDI2_VOICE_E::RegControl:
-				case MIDI2_VOICE_E::AssControl:
-				case MIDI2_VOICE_E::RelRegControl:
-				case MIDI2_VOICE_E::RelAssControl:
-					msgCurrent.voice2.bankCtrl = data[2];
-					msgCurrent.voice2.index = data[3];
-					msgCurrent.voice2.data = (uint32_t) data[4];
-					break;
-				case MIDI2_VOICE_E::NotePitchbend:
-				case MIDI2_VOICE_E::Aftertouch:
-					msgCurrent.voice2.note = data[2];
-					msgCurrent.voice2.data = (uint32_t) data[4];
-					break;
-				case MIDI2_VOICE_E::NoteOff:
-				case MIDI2_VOICE_E::NoteOn:
-					msgCurrent.voice2.note = data[2];
-					msgCurrent.voice2.attrType = (MIDI_ATTR_E) data[3];
-					msgCurrent.voice2.velocity = (uint16_t) data[4];
-					msgCurrent.voice2.attrVal = (uint16_t) data[6]; 
-					break;
-				case MIDI2_VOICE_E::CControl:
-					msgCurrent.voice2.controller = data[2];
-					msgCurrent.voice2.data = (uint16_t) data[4];
-					break;
-				case MIDI2_VOICE_E::ProgChange:
-					msgCurrent.voice2.options = data[3];
-					msgCurrent.voice2.program = data[4];
-					msgCurrent.voice2.bankPC = (data[6] << 7) | data[7];
-					break;
-				case MIDI2_VOICE_E::ChanPressure:
-				case MIDI2_VOICE_E::Pitchbend:
-					msgCurrent.voice2.data = (uint32_t) data[4];
-					break;
-				case MIDI2_VOICE_E::NoteManage:
-					msgCurrent.voice2.note = data[2];
-					msgCurrent.voice2.options = data[3];
-					break;
-			}
-			if (MIDI2_voice_p != 0) {
-				MIDI2_voice_p(&msgCurrent.voice2);
-			} else if (MIDI_UMP_p != 0) {
-				MIDI_UMP_p(&msgCurrent);
-			}
-		} else if (msgType == MIDI_MT_E::Data128) {
-			if (MIDI2_data128_p != 0) {
-				msgCurrent.data128.group = data[0] & 0x0f;
-				msgCurrent.data128.status = (MIDI2_DATA128_E) (data[1] >> 4);
+				if (MIDI2_com_p != 0) {
+					MIDI2_com_p(&msgCurrent.com);
+				} else if (MIDI_UMP_p != 0) {
+					MIDI_UMP_p(&msgCurrent);
+				}
+			} else if (msgType == MIDI_MT_E::Voice1) {
+				l += 4;
+				msgCurrent.voice1.group = inData[0] & 0x0f;
+				msgCurrent.voice1.status = (MIDI1_STATUS_E) (inData[1] >> 4);
+				msgCurrent.voice1.channel = inData[1] & 0x0f;
+				switch (msgCurrent.voice1.status){
+					case MIDI1_STATUS_E::Aftertouch:
+					case MIDI1_STATUS_E::NoteOn:
+					case MIDI1_STATUS_E::NoteOff:
+						msgCurrent.voice1.key = inData[2];
+						msgCurrent.voice1.velocity = inData[3];
+						break;
+					case MIDI1_STATUS_E::CControl:
+						msgCurrent.voice1.controller = inData[2];
+						msgCurrent.voice1.val = inData[3];
+						break;
+					case MIDI1_STATUS_E::ProgChange:
+						msgCurrent.voice1.instrument = inData[2];
+						break;
+					case MIDI1_STATUS_E::ChanPressure:
+						msgCurrent.voice1.pressure = inData[2];
+						break;
+					case MIDI1_STATUS_E::Pitchbend:
+						msgCurrent.voice1.bend = inData[2] | (inData[3] << 7);
+						break;
+					default:
+						msgCurrent.voice1.status = MIDI1_STATUS_E::Invalid;
+						break;
+				}
+				
+				if (msgCurrent.voice1.status == MIDI1_STATUS_E::Invalid) {
+					return;
+				} else if (MIDI1_p != 0) {
+					MIDI1_p(&msgCurrent.voice1);
+				} else if (MIDI_UMP_p != 0) {
+					MIDI_UMP_p(&msgCurrent);
+				}
+			} else if (msgType == MIDI_MT_E::Data64) {
+				l += 8;
+				msgCurrent.data64.group = inData[0] & 0x0f;
+				msgCurrent.data64.status = (MIDI2_DATA64_E) (inData[1] >> 4);
+				msgCurrent.data64.numBytes = inData[1] & 0x0f;
+				for (uint8_t i = 0; i < (length - 2); i++) {
+					if (i > 5) break;
+					msgCurrent.data64.data[i] = inData[i+2];
+				}
+				
+				if (MIDI2_data64_p != 0) {
+					MIDI2_data64_p(&msgCurrent.data64);
+				} else if (MIDI_UMP_p != 0) {
+					MIDI_UMP_p(&msgCurrent);
+				}
+			} else if (msgType == MIDI_MT_E::Voice2) {
+				l += 8;
+				msgCurrent.voice2.group = inData[0] & 0x0f;
+				msgCurrent.voice2.status = (MIDI2_VOICE_E) (inData[1] >> 4);
+				msgCurrent.voice2.channel = inData[1] & 0x0f;
+				switch (msgCurrent.voice2.status){
+					case MIDI2_VOICE_E::RegNoteControl:
+					case MIDI2_VOICE_E::AssNoteControl:
+						msgCurrent.voice2.note = inData[2];
+						msgCurrent.voice2.controller = inData[3];
+						msgCurrent.voice2.data = (uint32_t) inData[4];
+						break;
+					case MIDI2_VOICE_E::RegControl:
+					case MIDI2_VOICE_E::AssControl:
+					case MIDI2_VOICE_E::RelRegControl:
+					case MIDI2_VOICE_E::RelAssControl:
+						msgCurrent.voice2.bankCtrl = inData[2];
+						msgCurrent.voice2.index = inData[3];
+						msgCurrent.voice2.data = (uint32_t) inData[4];
+						break;
+					case MIDI2_VOICE_E::NotePitchbend:
+					case MIDI2_VOICE_E::Aftertouch:
+						msgCurrent.voice2.note = inData[2];
+						msgCurrent.voice2.data = (uint32_t) inData[4];
+						break;
+					case MIDI2_VOICE_E::NoteOff:
+					case MIDI2_VOICE_E::NoteOn:
+						msgCurrent.voice2.note = inData[2];
+						msgCurrent.voice2.attrType = (MIDI_ATTR_E) inData[3];
+						msgCurrent.voice2.velocity = (uint16_t) inData[4];
+						msgCurrent.voice2.attrVal = (uint16_t) inData[6]; 
+						break;
+					case MIDI2_VOICE_E::CControl:
+						msgCurrent.voice2.controller = inData[2];
+						msgCurrent.voice2.data = (uint16_t) inData[4];
+						break;
+					case MIDI2_VOICE_E::ProgChange:
+						msgCurrent.voice2.options = inData[3];
+						msgCurrent.voice2.program = inData[4];
+						msgCurrent.voice2.bankPC = (inData[6] << 7) | inData[7];
+						break;
+					case MIDI2_VOICE_E::ChanPressure:
+					case MIDI2_VOICE_E::Pitchbend:
+						msgCurrent.voice2.data = (uint32_t) inData[4];
+						break;
+					case MIDI2_VOICE_E::NoteManage:
+						msgCurrent.voice2.note = inData[2];
+						msgCurrent.voice2.options = inData[3];
+						break;
+				}
+				if (MIDI2_voice_p != 0) {
+					MIDI2_voice_p(&msgCurrent.voice2);
+				} else if (MIDI_UMP_p != 0) {
+					MIDI_UMP_p(&msgCurrent);
+				}
+			} else if (msgType == MIDI_MT_E::Data128) {
+				l += 16;
+				msgCurrent.data128.group = inData[0] & 0x0f;
+				msgCurrent.data128.status = (MIDI2_DATA128_E) (inData[1] >> 4);
 				uint8_t off = 2;
 				if ((msgCurrent.data128.status == MIDI2_DATA128_E::MixHead) || (msgCurrent.data128.status == MIDI2_DATA128_E::MixPay)) {
-					msgCurrent.data128.mdsID = data[1] & 0x0f;
+					msgCurrent.data128.mdsID = inData[1] & 0x0f;
 					} else {
-					msgCurrent.data128.numBytes = data[1] & 0x0f;
-					msgCurrent.data128.streamID = data[2];
+					msgCurrent.data128.numBytes = inData[1] & 0x0f;
+					msgCurrent.data128.streamID = inData[2];
 					off = 3;
 				}
 				for (uint8_t i = 0; i < (length - off); i++) {
 					if (i > (15 - off)) break;
-					msgCurrent.data128.data[i] = data[i+off];
+					msgCurrent.data128.data[i] = inData[i+off];
 				}
 				
 				// Can not be converted to MIDI 1.0
