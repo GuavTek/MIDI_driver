@@ -465,7 +465,28 @@ void MIDI_C::Decode (char* data, uint8_t length){
 				} else if (MIDI_UMP_p != 0) {
 					MIDI_UMP_p(&msgCurrent);
 				}
-				
+			} else if (msgType == MIDI_MT_E::Reserved6)	{
+				l += 4;
+			} else if (msgType == MIDI_MT_E::Reserved7)	{
+				l += 4;
+			} else if (msgType == MIDI_MT_E::Reserved8)	{
+				l += 8;
+			} else if (msgType == MIDI_MT_E::Reserved9)	{
+				l += 8;
+			} else if (msgType == MIDI_MT_E::Reserved10)	{
+				l += 8;
+			} else if (msgType == MIDI_MT_E::Reserved11)	{
+				l += 12;
+			} else if (msgType == MIDI_MT_E::Reserved12)	{
+				l += 12;
+			} else if (msgType == MIDI_MT_E::FlexData)	{
+				l += 16;
+				// TODO
+			} else if (msgType == MIDI_MT_E::Reserved14)	{
+				l += 16;
+			} else if (msgType == MIDI_MT_E::Stream)	{
+				l += 16;
+				// TODO
 			}
 		}
 	} else {

@@ -17,7 +17,17 @@ enum class MIDI_MT_E {
 	Voice1		= 0x2,
 	Data64		= 0x3,
 	Voice2		= 0x4,
-	Data128		= 0x5
+	Data128		= 0x5,
+	Reserved6	= 0x6,
+	Reserved7	= 0x7,
+	Reserved8	= 0x8,
+	Reserved9	= 0x9,
+	Reserved10	= 0xa,
+	Reserved11	= 0xb,
+	Reserved12	= 0xc,
+	FlexData	= 0xd,
+	Reserved14	= 0xe,
+	Stream		= 0xf,
 };
 
 enum class MIDI_ATTR_E {
