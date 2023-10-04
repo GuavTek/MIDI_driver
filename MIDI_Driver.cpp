@@ -285,8 +285,9 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI_UMP_t* msgIn, uint8_t ver){
 			if (ver == 2){
 				return Encode(dataOut, &msgIn->voice2);
 			} else {
-				// MIDI 2.0 only????
-				return 0;
+				MIDI1_msg_t msgConverted;
+				Convert(&msgConverted, &msgIn->voice2);
+				return Encode(dataOut, &msgConverted, 1);
 			}
 		case MIDI_MT_E::Data128:
 			if (ver == 2){
