@@ -84,6 +84,47 @@ enum class MIDI2_DATA128_E {
 	MixPay		= 0x9
 };
 
+enum class MIDI2_FORMAT_E {
+	Single		= 0x0,
+	Start		= 0x1,
+	Continue	= 0x2,
+	End			= 0x3
+};
+
+enum class MIDI2_FLEX_ADDR_E {
+	Channel		= 0x0,
+	Group		= 0x1,
+	Reserved2	= 0x2,
+	Reserved3	= 0x3
+};
+
+enum class MIDI2_FLEXDATA_E {
+	SetTempo		= 0x0000,
+	SetTimeSig		= 0x0001,
+	SetMetronome	= 0x0002,
+	SetKeySig		= 0x0005,
+	SetChord		= 0x0006,
+	MetaUnknown		= 0x0100,
+	MetaProName		= 0x0101,
+	MetaSongName	= 0x0102,
+	MetaClipName	= 0x0103,
+	MetaCopyright	= 0x0104,
+	MetaComposer	= 0x0105,
+	MetaLyricist	= 0x0106,
+	MetaArranger	= 0x0107,
+	MetaPublisher	= 0x0108,
+	MetaPerformer	= 0x0109,
+	MetaPerformer2	= 0x010a,
+	MetaDate		= 0x010b,
+	MetaLocation	= 0x010c,
+	TextUnknown		= 0x0200,
+	TextLyric		= 0x0201,
+	TextLanguage	= 0x0202,
+	TextRuby		= 0x0203,
+	TextRubyLang	= 0x0204,
+	Reserved3	= 0x0300
+};
+
 enum class MIDI2_VOICE_E {
 	RegNoteControl	= 0b0000,
 	AssNoteControl	= 0b0001,
@@ -100,6 +141,84 @@ enum class MIDI2_VOICE_E {
 	ChanPressure	= 0b1101,
 	Pitchbend		= 0b1110,
 	NoteManage		= 0b1111
+};
+
+enum class MIDI2_STREAM_E {
+	EndpointDiscovery	= 0x000,
+	EndpointInfo		= 0x001,
+	DeviceID			= 0x002,
+	EndpointName		= 0x003,
+	ProductInstance		= 0x004,
+	ConfigReq			= 0x005,
+	ConfigNotice		= 0x006,
+	FunctionDiscovery	= 0x010,
+	FunctionInfo		= 0x011,
+	FunctionName		= 0x012,
+	ClipStart			= 0x020,
+	ClipEnd				= 0x021
+};
+
+enum class CHORD_TYPE_E {
+	Clear	= 0x00,
+	Maj		= 0x01,
+	Maj6	= 0x02,
+	Maj7	= 0x03,
+	Maj9	= 0x04,
+	Maj11	= 0x05,
+	Maj13	= 0x06,
+	Min		= 0x07,
+	Min6	= 0x08,
+	Min7	= 0x09,
+	Min9	= 0x0a,
+	Min11	= 0x0b,
+	Min13	= 0x0c,
+	Dom		= 0x0d,
+	Dom9	= 0x0e,
+	Dom11	= 0x0f,
+	Dom13	= 0x10,
+	Aug		= 0x11,
+	Aug7	= 0x12,
+	Dim		= 0x13,
+	Dim7	= 0x14,
+	HalfDim	= 0x15,
+	MajMin	= 0x16,
+	Pedal	= 0x17,
+	Power	= 0x18,
+	Sus2	= 0x19,
+	Sus4	= 0x1a,
+	Sus4_7	= 0x1b,
+};
+
+enum class CHORD_ALT_E {
+	Normal	= 0x0,
+	Add		= 0x1,
+	Sub		= 0x2,
+	Raise	= 0x3,
+	Lower	= 0x4
+};
+
+enum class MIDI_DIR_E {
+	Reserved	= 0x0,
+	Input		= 0x1,
+	Output		= 0x2,
+	Bidirect	= 0x3
+};
+
+enum class MIDI1_BLOCK_E {
+	None			= 0x0,
+	Unrestricted	= 0x1,
+	Restricted		= 0x2,
+	Reserved		= 0x3
+};
+	
+struct MIDI_chord_t {
+	int8_t sharps;
+	uint8_t tonic;
+	enum CHORD_TYPE_E type;
+	struct {
+		enum CHORD_ALT_E type;
+		int8_t degree;
+	} alts[4];
 };
 
 struct MIDI1_msg_t
@@ -154,6 +273,103 @@ struct MIDI2_data128_t {
 	uint8_t data[13];
 };
 
+struct MIDI2_flexdata_t {
+	uint8_t group;
+	enum MIDI2_FLEXDATA_E status;
+	enum MIDI2_FORMAT_E format;
+	enum MIDI2_FLEX_ADDR_E destination;
+	uint8_t channel;
+	union {
+		uint8_t data[12];
+		uint32_t tempo;
+		struct {
+			uint8_t numerator;
+			uint8_t denominator;
+			uint8_t numNotes;
+		} timeSig;
+		struct {
+			uint8_t primaryClick;
+			uint8_t accent[3];
+			uint8_t subClick[2];
+		} metronome;
+		struct {
+			int8_t sharps;
+			uint8_t tonic;
+		} keySig;
+		struct {
+			struct MIDI_chord_t mainChord;
+			struct MIDI_chord_t bassChord;
+		} chord;
+	};
+};
+
+struct MIDI2_stream_t {
+	enum MIDI2_FORMAT_E format;
+	enum MIDI2_STREAM_E status;
+	union {
+		uint8_t data[14];
+		struct {
+			uint8_t verMaj;
+			uint8_t verMin;
+			bool reqInfo;
+			bool reqDevID;
+			bool reqName;
+			bool reqInstID;
+			bool reqStream;
+			bool reserved5;
+			bool reserved6;
+			bool reserved7;
+		} epDiscovery;
+		struct {
+			uint8_t verMaj;
+			uint8_t verMin;
+			bool isStatic;
+			uint8_t funcNum;
+			bool midi1;
+			bool midi2;
+			bool rxJR;
+			bool txJR;
+		} epInfo;
+		struct {
+			uint32_t sysexID;
+			uint16_t devFamily;
+			uint16_t devModel;
+			uint32_t devVersion;
+		} devID;
+		struct {
+			uint8_t protocol;
+			bool rxJR;
+			bool txJR;
+		} streamCon;
+		struct {
+			uint8_t funcNum;
+			bool reqInfo;
+			bool reqName;
+			bool reserved2;
+			bool reserved3;
+			bool reserved4;
+			bool reserved5;
+			bool reserved6;
+			bool reserved7;
+		} funcDiscovery;
+		struct {
+			bool isActive;
+			uint8_t funcNum;
+			enum MIDI_DIR_E hint;
+			enum MIDI1_BLOCK_E midiSpeed;
+			enum MIDI_DIR_E direction;
+			uint8_t groupFirst;
+			uint8_t groupSpan;
+			uint8_t ciVersion;
+			uint8_t sysexNum;
+		} funcInfo;
+		struct {
+			uint8_t funcNum;
+			uint8_t name[13];
+		} funcName;
+	};
+};
+
 struct MIDI2_voice_t {
 	uint8_t group;
 	enum MIDI2_VOICE_E status;
@@ -184,6 +400,8 @@ struct MIDI_UMP_t {
 		MIDI2_data64_t data64;
 		MIDI2_voice_t voice2;
 		MIDI2_data128_t data128;
+		MIDI2_flexdata_t flex;
+		MIDI2_stream_t stream;
 	};
 };
 
@@ -209,6 +427,8 @@ public:
 	inline void Set_handler(void (*cb) (MIDI2_data64_t*)) {MIDI2_data64_p = cb;};
 	inline void Set_handler(void (*cb) (MIDI2_com_t*)) {MIDI2_com_p = cb;};
 	inline void Set_handler(void (*cb) (MIDI2_util_t*)) {MIDI2_util_p = cb;};
+	inline void Set_handler(void (*cb) (MIDI2_flexdata_t*)) {MIDI2_flex_p = cb;};
+	inline void Set_handler(void (*cb) (MIDI2_stream_t*)) {MIDI2_stream_p = cb;};
 	inline void Set_handler(void (*cb) (MIDI1_msg_t*)) {MIDI1_p = cb;};
 	inline void Set_handler(void (*cb) (MIDI_UMP_t*)) {MIDI_UMP_p = cb;};
 	inline uint8_t Get_Version(void) {return MIDIVersion;};
@@ -222,6 +442,8 @@ protected:
 	void (* MIDI2_data64_p) (struct MIDI2_data64_t* msg);
 	void (* MIDI2_com_p) (struct MIDI2_com_t* msg);
 	void (* MIDI2_util_p) (struct MIDI2_util_t* msg);
+	void (* MIDI2_flex_p) (struct MIDI2_flexdata_t* msg);
+	void (* MIDI2_stream_p) (struct MIDI2_stream_t* msg);
 	void (* MIDI1_p) (struct MIDI1_msg_t* msg);
 	void (* MIDI_UMP_p) (struct MIDI_UMP_t* msg);
 	uint8_t MIDIVersion;

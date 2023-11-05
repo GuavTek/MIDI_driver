@@ -492,12 +492,145 @@ void MIDI_C::Decode (char* data, uint8_t length){
 				l += 12;
 			} else if (msgType == MIDI_MT_E::FlexData)	{
 				l += 16;
-				// TODO
+				bool maskedOut;
+				msgCurrent.flex.group = inData[0] & 0xf;
+				maskedOut = !(groupMask & (1 << msgCurrent.flex.group));
+				msgCurrent.flex.channel = inData[1] & 0xf;
+				msgCurrent.flex.destination = (MIDI2_FLEX_ADDR_E) ((inData[1] >> 4) & 0x3);
+				msgCurrent.flex.format = (MIDI2_FORMAT_E) ((inData[1] >> 6) & 0x3);
+				maskedOut |= (msgCurrent.flex.destination == MIDI2_FLEX_ADDR_E::Channel) && !(channelMask & (1 << msgCurrent.flex.channel));
+				if (maskedOut) continue;
+				msgCurrent.flex.status = (MIDI2_FLEXDATA_E) ((inData[2] << 8) | inData[3]);
+				switch (msgCurrent.flex.status){
+					case MIDI2_FLEXDATA_E::SetTempo:
+						msgCurrent.flex.tempo = (inData[4] << 24) | (inData[5] << 16) | (inData[6] << 8) | inData[7];
+						break;
+					case MIDI2_FLEXDATA_E::SetTimeSig:
+						msgCurrent.flex.timeSig.numerator = inData[4];
+						msgCurrent.flex.timeSig.denominator = inData[5];
+						msgCurrent.flex.timeSig.numNotes = inData[6];
+						break;
+					case MIDI2_FLEXDATA_E::SetMetronome:
+						msgCurrent.flex.metronome.primaryClick = inData[4];
+						for (uint8_t i = 0; i < 3; i++){
+							msgCurrent.flex.metronome.accent[i] = inData[i+5];
+						}
+						for (uint8_t i = 0; i < 2; i++){
+							msgCurrent.flex.metronome.subClick[i] = inData[i+8];
+						}
+						break;
+					case MIDI2_FLEXDATA_E::SetKeySig:
+						struct {int8_t val : 4;} tempSigned;	// Make sure 4-bit value gets sign-extended
+						msgCurrent.flex.keySig.tonic = inData[4] & 0xf;
+						tempSigned.val = inData[4] >> 4;
+						msgCurrent.flex.keySig.sharps = tempSigned.val;
+						break;
+					case MIDI2_FLEXDATA_E::SetChord:
+						struct {int8_t val : 4;} tempSigned;	// Make sure 4-bit value gets sign-extended
+						msgCurrent.flex.chord.mainChord.tonic = inData[4] & 0xf;
+						tempSigned.val = inData[4] >> 4;
+						msgCurrent.flex.chord.mainChord.sharps = tempSigned.val;
+						msgCurrent.flex.chord.mainChord.type = (CHORD_TYPE_E) inData[5];
+						for (uint8_t i = 0; i < 4; i++){
+							tempSigned.val = inData[i+6] & 0xf;
+							msgCurrent.flex.chord.mainChord.alts[i].degree = tempSigned.val;
+							msgCurrent.flex.chord.mainChord.alts[i].type = (CHORD_ALT_E) (inData[i+6] >> 4);
+						}
+						msgCurrent.flex.chord.bassChord.tonic = inData[12] & 0xf;
+						tempSigned.val = inData[12] >> 4;
+						msgCurrent.flex.chord.bassChord.sharps = tempSigned.val;
+						msgCurrent.flex.chord.bassChord.type = (CHORD_TYPE_E) inData[13];
+						for (uint8_t i = 0; i < 2; i++){
+							tempSigned.val = inData[i+14] & 0xf;
+							msgCurrent.flex.chord.bassChord.alts[i].degree = tempSigned.val;
+							msgCurrent.flex.chord.bassChord.alts[i].type = (CHORD_ALT_E) (inData[i+14] >> 4);
+						}
+						break;
+					default:
+						for (uint8_t i = 0; i < 12; i++){
+							msgCurrent.flex.data[i] = inData[i+4];
+						}
+						break;
+				}
+				if (MIDI2_flex_p != 0){
+					MIDI2_flex_p(&msgCurrent.flex);
+				} else if (MIDI_UMP_p != 0){
+					MIDI_UMP_p(&msgCurrent);
+				}
 			} else if (msgType == MIDI_MT_E::Reserved14)	{
 				l += 16;
 			} else if (msgType == MIDI_MT_E::Stream)	{
 				l += 16;
-				// TODO
+				msgCurrent.stream.status = (MIDI2_STREAM_E) ((inData[1] | inData[0] << 8) & 0x03ff);
+				switch (msgCurrent.stream.status){
+					case MIDI2_STREAM_E::EndpointDiscovery:
+						msgCurrent.stream.epDiscovery.verMaj = inData[2];
+						msgCurrent.stream.epDiscovery.verMin = inData[3];
+						msgCurrent.stream.epDiscovery.reqInfo = inData[7] & 0b1;
+						msgCurrent.stream.epDiscovery.reqDevID = (inData[7] >> 1) & 0b1;
+						msgCurrent.stream.epDiscovery.reqName = (inData[7] >> 2) & 0b1;
+						msgCurrent.stream.epDiscovery.reqInstID = (inData[7] >> 3) & 0b1;
+						msgCurrent.stream.epDiscovery.reqStream = (inData[7] >> 4) & 0b1;
+						break;
+					case MIDI2_STREAM_E::EndpointInfo:
+						msgCurrent.stream.epInfo.verMaj = inData[2];
+						msgCurrent.stream.epInfo.verMin = inData[3];
+						msgCurrent.stream.epInfo.isStatic = inData[4] >> 7;
+						msgCurrent.stream.epInfo.funcNum = inData[4] & 0x7f;
+						msgCurrent.stream.epInfo.midi1 = inData[6] & 0b1;
+						msgCurrent.stream.epInfo.midi2 = (inData[6] >> 1) & 0b1;
+						msgCurrent.stream.epInfo.txJR = inData[7] & 0b1;
+						msgCurrent.stream.epInfo.rxJR = (inData[7] >> 1) & 0b1;
+						break;
+					case MIDI2_STREAM_E::DeviceID:
+						msgCurrent.stream.devID.sysexID = (inData[5] | (inData[6] << 7) | (inData[7] << 14)) & 0x1fffff;
+						msgCurrent.stream.devID.devFamily = (inData[8] | (inData[9] << 7)) & 0x3fff;
+						msgCurrent.stream.devID.devModel = (inData[10] | (inData[11] << 7)) & 0x3fff;
+						msgCurrent.stream.devID.devVersion = (inData[12] | (inData[13] << 7) | (inData[14] << 14) | (inData[15] << 21)) & 0x0fffffff;
+						break;
+					case MIDI2_STREAM_E::EndpointName:
+					case MIDI2_STREAM_E::ProductInstance:
+						for (uint8_t i = 0; i < 14; i++){
+							msgCurrent.stream.data[i] = inData[i+2];
+						}
+						break;
+					case MIDI2_STREAM_E::ConfigReq:
+					case MIDI2_STREAM_E::ConfigNotice:
+						msgCurrent.stream.streamCon.protocol = inData[2];
+						msgCurrent.stream.streamCon.rxJR = (inData[3] >> 1) & 0b1;
+						msgCurrent.stream.streamCon.txJR = inData[3] & 0b1;
+						break;
+					case MIDI2_STREAM_E::FunctionDiscovery:
+						msgCurrent.stream.funcDiscovery.funcNum = inData[2];
+						msgCurrent.stream.funcDiscovery.reqInfo = inData[3] & 0b1;
+						msgCurrent.stream.funcDiscovery.reqName = (inData[3] >> 1) & 0b1;
+						break;
+					case MIDI2_STREAM_E::FunctionInfo:
+						msgCurrent.stream.funcInfo.isActive = inData[2] >> 7;
+						msgCurrent.stream.funcInfo.funcNum = inData[2] & 0x7f;
+						msgCurrent.stream.funcInfo.hint = (MIDI_DIR_E) ((inData[3] >> 4) & 0b11);
+						msgCurrent.stream.funcInfo.midiSpeed = (MIDI1_BLOCK_E) ((inData[3] >> 2) & 0b11);
+						msgCurrent.stream.funcInfo.direction = (MIDI_DIR_E) (inData[3] & 0b11);
+						msgCurrent.stream.funcInfo.groupFirst = inData[4];
+						msgCurrent.stream.funcInfo.groupSpan = inData[5];
+						msgCurrent.stream.funcInfo.ciVersion = inData[6];
+						msgCurrent.stream.funcInfo.sysexNum = inData[7];
+						break;
+					case MIDI2_STREAM_E::FunctionName:
+						msgCurrent.stream.funcName.funcNum = inData[2];
+						for (uint8_t i = 0; i < 13; i++){
+							msgCurrent.stream.funcName.name[i] = inData[i+3];
+						}
+						break;
+					default:
+						break;
+				}				
+				// Can not be converted to MIDI 1.0
+				if (MIDI2_stream_p != 0){
+					MIDI2_stream_p(&msgCurrent.stream);
+				} else if (MIDI_UMP_p != 0) {
+					MIDI_UMP_p(&msgCurrent);
+				}
 			}
 		}
 	} else {
