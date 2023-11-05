@@ -119,7 +119,6 @@ struct MIDI1_msg_t
 };
 
 struct MIDI2_util_t {
-	uint8_t group;
 	enum MIDI2_UTIL_E status;
 	union {
 		uint16_t clk;

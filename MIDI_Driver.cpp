@@ -219,7 +219,7 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_com_t* msgIn, uint8_t ver){
 }
 
 uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_util_t* msgIn){
-	dataOut[0] = (((uint8_t) MIDI_MT_E::Utility) << 4) | (msgIn->group & 0x0f);
+	dataOut[0] = (((uint8_t) MIDI_MT_E::Utility) << 4);
 	dataOut[1] = (uint8_t) msgIn->status << 4;
 	dataOut[2] = msgIn->timestamp;	// clk and timestamp should be the same bcs union
 	return 4;
@@ -312,7 +312,6 @@ void MIDI_C::Decode (char* data, uint8_t length){
 			msgCurrent.type = msgType;
 			if(msgType == MIDI_MT_E::Utility) {
 				l += 4;
-				msgCurrent.util.group = inData[0] & 0x0f;
 				msgCurrent.util.status = (MIDI2_UTIL_E) (inData[1] >> 4);
 				if (msgCurrent.util.status == MIDI2_UTIL_E::JRClk) {
 					msgCurrent.util.clk = (inData[2] << 8) | inData[3];
