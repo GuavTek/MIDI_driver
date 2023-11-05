@@ -328,6 +328,7 @@ void MIDI_C::Decode (char* data, uint8_t length){
 			} else if (msgType == MIDI_MT_E::RealTime) {
 				l += 4;
 				msgCurrent.com.group = inData[0] & 0x0f;
+				if (!(groupMask & (1 << msgCurrent.com.group))) continue;	// Masked out
 				msgCurrent.com.status = (MIDI2_COM_E) (inData[1] && 0x0f);
 				if (msgCurrent.com.status == MIDI2_COM_E::TimeCode) {
 					msgCurrent.com.timecode = inData[2];
@@ -345,8 +346,9 @@ void MIDI_C::Decode (char* data, uint8_t length){
 			} else if (msgType == MIDI_MT_E::Voice1) {
 				l += 4;
 				msgCurrent.voice1.group = inData[0] & 0x0f;
-				msgCurrent.voice1.status = (MIDI1_STATUS_E) (inData[1] >> 4);
 				msgCurrent.voice1.channel = inData[1] & 0x0f;
+				if (!(groupMask & (1 << msgCurrent.voice1.group)) || !(channelMask & (1 << msgCurrent.voice1.channel))) continue;	// Masked out
+				msgCurrent.voice1.status = (MIDI1_STATUS_E) (inData[1] >> 4);
 				switch (msgCurrent.voice1.status){
 					case MIDI1_STATUS_E::Aftertouch:
 					case MIDI1_STATUS_E::NoteOn:
@@ -382,6 +384,7 @@ void MIDI_C::Decode (char* data, uint8_t length){
 			} else if (msgType == MIDI_MT_E::Data64) {
 				l += 8;
 				msgCurrent.data64.group = inData[0] & 0x0f;
+				if (!(groupMask & (1 << msgCurrent.data64.group))) continue;	// Masked out
 				msgCurrent.data64.status = (MIDI2_DATA64_E) (inData[1] >> 4);
 				msgCurrent.data64.numBytes = inData[1] & 0x0f;
 				for (uint8_t i = 0; i < (length - 2); i++) {
@@ -397,8 +400,9 @@ void MIDI_C::Decode (char* data, uint8_t length){
 			} else if (msgType == MIDI_MT_E::Voice2) {
 				l += 8;
 				msgCurrent.voice2.group = inData[0] & 0x0f;
-				msgCurrent.voice2.status = (MIDI2_VOICE_E) (inData[1] >> 4);
 				msgCurrent.voice2.channel = inData[1] & 0x0f;
+				if (!(groupMask & (1 << msgCurrent.voice2.group)) || !(channelMask & (1 << msgCurrent.voice2.channel))) continue;	// Masked out
+				msgCurrent.voice2.status = (MIDI2_VOICE_E) (inData[1] >> 4);
 				switch (msgCurrent.voice2.status){
 					case MIDI2_VOICE_E::RegNoteControl:
 					case MIDI2_VOICE_E::AssNoteControl:
@@ -452,6 +456,7 @@ void MIDI_C::Decode (char* data, uint8_t length){
 			} else if (msgType == MIDI_MT_E::Data128) {
 				l += 16;
 				msgCurrent.data128.group = inData[0] & 0x0f;
+				if (!(groupMask & (1 << msgCurrent.data128.group))) continue;	// Masked out
 				msgCurrent.data128.status = (MIDI2_DATA128_E) (inData[1] >> 4);
 				uint8_t off = 2;
 				if ((msgCurrent.data128.status == MIDI2_DATA128_E::MixHead) || (msgCurrent.data128.status == MIDI2_DATA128_E::MixPay)) {
@@ -542,6 +547,12 @@ void MIDI_C::Decode (char* data, uint8_t length){
 				// Decode buffered message
 				MIDI1_msg_t tempMsg;
 				tempMsg.channel = msgBuffer[0] & 0x0f;
+				if (!(channelMask & (1 << tempMsg.channel))) {
+					// Channel is masked out, skip this
+					msgIndex = 0;
+					msgLength = -1;
+					continue;
+				}
 				tempMsg.status = (MIDI1_STATUS_E) (msgBuffer[0] >> 4);
 				switch (tempMsg.status) {
 				case MIDI1_STATUS_E::NoteOn:

@@ -202,6 +202,8 @@ public:
 	static uint8_t Encode(char* dataOut, struct MIDI2_util_t* msgIn);
 	static uint8_t Encode(char* dataOut, struct MIDI1_msg_t* msgIn, uint8_t ver);
 	static uint8_t Encode(char* dataOut, struct MIDI_UMP_t* msgIn, uint8_t ver);
+	void Set_channel_mask(uint16_t mask) {channelMask = mask;};
+	void Set_group_mask(uint16_t mask) {groupMask = mask;};
 	void Decode (char* data, uint8_t length);
 	inline void Set_handler(void (*cb) (MIDI2_voice_t*)) {MIDI2_voice_p = cb;};
 	inline void Set_handler(void (*cb) (MIDI2_data128_t*)) {MIDI2_data128_p = cb;};
@@ -232,6 +234,8 @@ protected:
 	} decodeState;
 	uint8_t msgIndex;
 	int8_t msgLength;
+	uint16_t channelMask = 0xffff;
+	uint16_t groupMask = 0xffff;
 	char msgBuffer[8];
 };
 
