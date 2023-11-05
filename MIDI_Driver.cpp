@@ -225,6 +225,138 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_util_t* msgIn){
 	return 4;
 }
 
+uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_flexdata_t* msgIn){
+	dataOut[0] = 0xd << 4; // Message type
+	dataOut[0] |= msgIn->group & 0xf;
+	dataOut[1] = msgIn->channel & 0xf;
+	dataOut[1] |= (uint8_t) msgIn->destination << 4;
+	dataOut[1] |= (uint8_t) msgIn->format << 6;
+	dataOut[2] = (uint16_t) msgIn->status >> 8;
+	dataOut[3] = (uint8_t) msgIn->status;
+	switch (msgIn->status){
+		case MIDI2_FLEXDATA_E::SetTempo:
+			dataOut[4] = msgIn->tempo;
+			dataOut[5] = msgIn->tempo >> 8;
+			dataOut[6] = msgIn->tempo >> 16;
+			dataOut[7] = msgIn->tempo >> 24;
+			break;
+		case MIDI2_FLEXDATA_E::SetTimeSig:
+			dataOut[4] = msgIn->timeSig.numerator;
+			dataOut[5] = msgIn->timeSig.denominator;
+			dataOut[6] = msgIn->timeSig.numNotes;
+			break;
+		case MIDI2_FLEXDATA_E::SetMetronome:
+			dataOut[4] = msgIn->metronome.primaryClick;
+			dataOut[5] = msgIn->metronome.accent[0];
+			dataOut[6] = msgIn->metronome.accent[1];
+			dataOut[7] = msgIn->metronome.accent[2];
+			dataOut[8] = msgIn->metronome.subClick[0];
+			dataOut[9] = msgIn->metronome.subClick[1];
+			break;
+		case MIDI2_FLEXDATA_E::SetKeySig:
+			dataOut[4] = msgIn->keySig.tonic & 0xf;
+			dataOut[4] |= msgIn->keySig.sharps << 4;
+			break;
+		case MIDI2_FLEXDATA_E::SetChord:
+			dataOut[4] = msgIn->chord.mainChord.tonic & 0xf;
+			dataOut[4] |= msgIn->chord.mainChord.sharps << 4;
+			dataOut[5] = (uint8_t) msgIn->chord.mainChord.type;
+			for (uint8_t i = 0; i < 4; i++){
+				dataOut[i+6] = msgIn->chord.mainChord.alts[i].degree & 0xf;
+				dataOut[i+6] = (uint8_t) msgIn->chord.mainChord.alts[i].type >> 4;
+			}
+			dataOut[12] = msgIn->chord.bassChord.tonic & 0xf;
+			dataOut[12] |= msgIn->chord.bassChord.sharps << 4;
+			dataOut[13] = (uint8_t) msgIn->chord.bassChord.type;
+			for (uint8_t i = 0; i < 2; i++){
+				dataOut[i+14] = msgIn->chord.bassChord.alts[i].degree & 0xf;
+				dataOut[i+14] = (uint8_t) msgIn->chord.bassChord.alts[i].type >> 4;
+			}
+			break;
+		default:
+			for (uint8_t i = 0; i < 12; i++){
+				dataOut[i+4] = msgIn->data[i];
+			}
+			break;
+	}
+	return 16;
+}
+
+uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_stream_t* msgIn){
+	dataOut[0] = 0xf << 4;	// Message type
+	dataOut[0] |= ((uint8_t) msgIn->format << 2);
+	dataOut[0] |= ((uint16_t) msgIn->status >> 8) & 0x3;
+	dataOut[1] = (uint8_t) msgIn->status;
+	switch (msgIn->status){
+		case MIDI2_STREAM_E::EndpointDiscovery:
+			dataOut[2] = msgIn->epDiscovery.verMaj;
+			dataOut[3] = msgIn->epDiscovery.verMin;
+			dataOut[7] = msgIn->epDiscovery.reqInfo & 0b1;
+			dataOut[7] |= (msgIn->epDiscovery.reqDevID & 0b1) << 1;
+			dataOut[7] |= (msgIn->epDiscovery.reqName & 0b1) << 2;
+			dataOut[7] |= (msgIn->epDiscovery.reqInstID & 0b1) << 3;
+			dataOut[7] |= (msgIn->epDiscovery.reqStream & 0b1) << 4;
+			break;
+		case MIDI2_STREAM_E::EndpointInfo:
+			dataOut[2] = msgIn->epInfo.verMaj;
+			dataOut[3] = msgIn->epInfo.verMin;
+			dataOut[4] = msgIn->epInfo.funcNum | (msgIn->epInfo.isStatic << 7);
+			dataOut[6] = msgIn->epInfo.midi1 & 0b1;
+			dataOut[6] |= (msgIn->epInfo.midi2 & 0b1) << 1;
+			dataOut[7] = msgIn->epInfo.txJR & 0b1;
+			dataOut[7] |= (msgIn->epInfo.rxJR & 0b1) << 1;
+			break;
+		case MIDI2_STREAM_E::DeviceID:
+			dataOut[5] = msgIn->devID.sysexID & 0x7f;
+			dataOut[6] = (msgIn->devID.sysexID >> 7) & 0x7f;
+			dataOut[7] = (msgIn->devID.sysexID >> 14) & 0x7f;
+			dataOut[8] = msgIn->devID.devFamily & 0x7f;
+			dataOut[9] = (msgIn->devID.devFamily >> 7) & 0x7f;
+			dataOut[10] = msgIn->devID.devFamily & 0x7f;
+			dataOut[11] = (msgIn->devID.devFamily >> 7) & 0x7f;
+			dataOut[12] = msgIn->devID.devVersion & 0x7f;
+			dataOut[13] = (msgIn->devID.devVersion >> 7) & 0x7f;
+			dataOut[14] = (msgIn->devID.devVersion >> 14) & 0x7f;
+			dataOut[15] = (msgIn->devID.devVersion >> 21) & 0x7f;
+			break;
+		case MIDI2_STREAM_E::EndpointName:
+		case MIDI2_STREAM_E::ProductInstance:
+			for (uint8_t i = 0; i < 14; i++){
+				dataOut[i+2] = msgIn->data[i];
+			}
+			break;
+		case MIDI2_STREAM_E::ConfigReq:
+		case MIDI2_STREAM_E::ConfigNotice:
+			dataOut[2] = msgIn->streamCon.protocol;
+			dataOut[3] = msgIn->streamCon.txJR & 0b1;
+			dataOut[3] |= (msgIn->streamCon.rxJR & 0b1) >> 1;
+			break;
+		case MIDI2_STREAM_E::FunctionDiscovery:
+			dataOut[2] = msgIn->funcDiscovery.funcNum;
+			dataOut[3] = msgIn->funcDiscovery.reqInfo & 0b1;
+			dataOut[3] |= (msgIn->funcDiscovery.reqName >> 1) & 0b1;
+		case MIDI2_STREAM_E::FunctionInfo:
+			dataOut[2] = msgIn->funcInfo.funcNum | (msgIn->funcInfo.isActive << 7);
+			dataOut[3] = (uint8_t) msgIn->funcInfo.direction;
+			dataOut[3] |= (uint8_t) msgIn->funcInfo.midiSpeed << 2;
+			dataOut[3] |= (uint8_t) msgIn->funcInfo.hint << 4;
+			dataOut[4] = msgIn->funcInfo.groupFirst;
+			dataOut[5] = msgIn->funcInfo.groupSpan;
+			dataOut[6] = msgIn->funcInfo.ciVersion;
+			dataOut[7] = msgIn->funcInfo.sysexNum;
+			break;
+		case MIDI2_STREAM_E::FunctionName:
+			dataOut[2] = msgIn->funcName.funcNum;
+			for (uint8_t i = 0; i < 13; i++){
+				dataOut[i+3] = msgIn->funcName.name[i];
+			}
+			break;
+		default:
+			break;
+	}
+	return 16;
+}
+
 uint8_t MIDI_C::Encode(char* dataOut, struct MIDI1_msg_t* msgIn, uint8_t ver){
 	uint8_t i = 0;
 	if (ver == 2) {
@@ -501,9 +633,10 @@ void MIDI_C::Decode (char* data, uint8_t length){
 				maskedOut |= (msgCurrent.flex.destination == MIDI2_FLEX_ADDR_E::Channel) && !(channelMask & (1 << msgCurrent.flex.channel));
 				if (maskedOut) continue;
 				msgCurrent.flex.status = (MIDI2_FLEXDATA_E) ((inData[2] << 8) | inData[3]);
+				struct {int8_t val : 4;} signedNibble;	// Make sure 4-bit value gets sign-extended		
 				switch (msgCurrent.flex.status){
 					case MIDI2_FLEXDATA_E::SetTempo:
-						msgCurrent.flex.tempo = (inData[4] << 24) | (inData[5] << 16) | (inData[6] << 8) | inData[7];
+						msgCurrent.flex.tempo = (inData[7] << 24) | (inData[6] << 16) | (inData[5] << 8) | inData[4];
 						break;
 					case MIDI2_FLEXDATA_E::SetTimeSig:
 						msgCurrent.flex.timeSig.numerator = inData[4];
@@ -520,29 +653,27 @@ void MIDI_C::Decode (char* data, uint8_t length){
 						}
 						break;
 					case MIDI2_FLEXDATA_E::SetKeySig:
-						struct {int8_t val : 4;} tempSigned;	// Make sure 4-bit value gets sign-extended
 						msgCurrent.flex.keySig.tonic = inData[4] & 0xf;
-						tempSigned.val = inData[4] >> 4;
-						msgCurrent.flex.keySig.sharps = tempSigned.val;
+						signedNibble.val = inData[4] >> 4;
+						msgCurrent.flex.keySig.sharps = signedNibble.val;
 						break;
 					case MIDI2_FLEXDATA_E::SetChord:
-						struct {int8_t val : 4;} tempSigned;	// Make sure 4-bit value gets sign-extended
 						msgCurrent.flex.chord.mainChord.tonic = inData[4] & 0xf;
-						tempSigned.val = inData[4] >> 4;
-						msgCurrent.flex.chord.mainChord.sharps = tempSigned.val;
+						signedNibble.val = inData[4] >> 4;
+						msgCurrent.flex.chord.mainChord.sharps = signedNibble.val;
 						msgCurrent.flex.chord.mainChord.type = (CHORD_TYPE_E) inData[5];
 						for (uint8_t i = 0; i < 4; i++){
-							tempSigned.val = inData[i+6] & 0xf;
-							msgCurrent.flex.chord.mainChord.alts[i].degree = tempSigned.val;
+							signedNibble.val = inData[i+6] & 0xf;
+							msgCurrent.flex.chord.mainChord.alts[i].degree = signedNibble.val;
 							msgCurrent.flex.chord.mainChord.alts[i].type = (CHORD_ALT_E) (inData[i+6] >> 4);
 						}
 						msgCurrent.flex.chord.bassChord.tonic = inData[12] & 0xf;
-						tempSigned.val = inData[12] >> 4;
-						msgCurrent.flex.chord.bassChord.sharps = tempSigned.val;
+						signedNibble.val = inData[12] >> 4;
+						msgCurrent.flex.chord.bassChord.sharps = signedNibble.val;
 						msgCurrent.flex.chord.bassChord.type = (CHORD_TYPE_E) inData[13];
 						for (uint8_t i = 0; i < 2; i++){
-							tempSigned.val = inData[i+14] & 0xf;
-							msgCurrent.flex.chord.bassChord.alts[i].degree = tempSigned.val;
+							signedNibble.val = inData[i+14] & 0xf;
+							msgCurrent.flex.chord.bassChord.alts[i].degree = signedNibble.val;
 							msgCurrent.flex.chord.bassChord.alts[i].type = (CHORD_ALT_E) (inData[i+14] >> 4);
 						}
 						break;

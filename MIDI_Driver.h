@@ -417,6 +417,8 @@ public:
 	static uint8_t Encode(char* dataOut, struct MIDI2_data64_t* msgIn, uint8_t ver);
 	static uint8_t Encode(char* dataOut, struct MIDI2_com_t* msgIn, uint8_t ver);
 	static uint8_t Encode(char* dataOut, struct MIDI2_util_t* msgIn);
+	static uint8_t Encode(char* dataOut, struct MIDI2_flexdata_t* msgIn);
+	static uint8_t Encode(char* dataOut, struct MIDI2_stream_t* msgIn);
 	static uint8_t Encode(char* dataOut, struct MIDI1_msg_t* msgIn, uint8_t ver);
 	static uint8_t Encode(char* dataOut, struct MIDI_UMP_t* msgIn, uint8_t ver);
 	void Set_channel_mask(uint16_t mask) {channelMask = mask;};
