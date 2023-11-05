@@ -297,7 +297,7 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI_UMP_t* msgIn, uint8_t ver){
 				return 0;
 			}
 		default:
-			break;
+			return 0;
 	}
 }
 
