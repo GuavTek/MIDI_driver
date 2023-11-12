@@ -221,7 +221,21 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_com_t* msgIn, uint8_t ver){
 uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_util_t* msgIn){
 	dataOut[0] = (((uint8_t) MIDI_MT_E::Utility) << 4);
 	dataOut[1] = (uint8_t) msgIn->status << 4;
-	dataOut[2] = msgIn->timestamp;	// clk and timestamp should be the same bcs union
+	switch (msgIn->status){
+		case MIDI2_UTIL_E::JRClk:
+		case MIDI2_UTIL_E::JRTimestamp:
+		case MIDI2_UTIL_E::DeltaTPQ:	// Union should mean these are in the same memory
+			dataOut[2] = msgIn->timestamp >> 8;
+			dataOut[3] = msgIn->timestamp;
+			break;
+		case MIDI2_UTIL_E::DeltaPrevTick:
+			dataOut[1] |= (msgIn->tickLast >> 16) & 0x0f;
+			dataOut[2] = msgIn->tickLast >> 8;
+			dataOut[3] = msgIn->tickLast;
+			break;
+		default:
+			break;
+	}
 	return 4;
 }
 
@@ -445,9 +459,12 @@ void MIDI_C::Decode (char* data, uint8_t length){
 			if(msgType == MIDI_MT_E::Utility) {
 				l += 4;
 				msgCurrent.util.status = (MIDI2_UTIL_E) (inData[1] >> 4);
-				if (msgCurrent.util.status == MIDI2_UTIL_E::JRClk) {
-					msgCurrent.util.clk = (inData[2] << 8) | inData[3];
-				} else if (msgCurrent.util.status == MIDI2_UTIL_E::JRTimestamp) {
+				if (msgCurrent.util.status == MIDI2_UTIL_E::DeltaPrevTick) {
+					msgCurrent.util.tickLast = ((inData[1] & 0xf) << 16) | (inData[2] << 8) | inData[3];
+				} else if (msgCurrent.util.status == MIDI2_UTIL_E::JRTimestamp
+						|| msgCurrent.util.status == MIDI2_UTIL_E::DeltaTPQ
+						|| msgCurrent.util.status == MIDI2_UTIL_E::JRClk) {
+					// Should be the same memory due to union
 					msgCurrent.util.timestamp = (inData[2] << 8) | inData[3];
 				}
 			

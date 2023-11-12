@@ -50,9 +50,11 @@ enum class MIDI1_STATUS_E {
 };
 
 enum class MIDI2_UTIL_E { 
-	NOOP = 0x0, 
-	JRClk = 0x1, 
-	JRTimestamp = 0x2 
+	NOOP			= 0x0, 
+	JRClk			= 0x1, 
+	JRTimestamp		= 0x2,
+	DeltaTPQ		= 0x3,
+	DeltaPrevTick	= 0x4
 };
 
 enum class MIDI2_COM_E {
@@ -242,6 +244,8 @@ struct MIDI2_util_t {
 	union {
 		uint16_t clk;
 		uint16_t timestamp;
+		uint16_t tickPerQuarter;
+		uint32_t tickLast;
 	}; 
 };
 
