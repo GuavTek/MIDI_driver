@@ -84,7 +84,6 @@ void MIDI_C::Convert(struct MIDI1_msg_t *msgOut, struct MIDI2_com_t *msgIn){
 }
 
 void MIDI_C::Convert(struct MIDI2_com_t *msgOut, struct MIDI1_msg_t *msgIn){
-	
 	msgOut->status = (MIDI2_COM_E) msgIn->channel;
 		
 	if (msgIn->channel == 2) {
@@ -132,7 +131,10 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_voice_t* msgIn){
 		case MIDI2_VOICE_E::AssNoteControl:
 			dataOut[2] = msgIn->note;
 			dataOut[3] = msgIn->controller;
-			dataOut[4] = msgIn->data;
+			dataOut[4] = msgIn->data >> 24;
+			dataOut[5] = msgIn->data >> 16;
+			dataOut[6] = msgIn->data >> 8;
+			dataOut[7] = msgIn->data;
 			break;
 		case MIDI2_VOICE_E::RegControl:
 		case MIDI2_VOICE_E::AssControl:
@@ -140,23 +142,34 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_voice_t* msgIn){
 		case MIDI2_VOICE_E::RelAssControl:
 			dataOut[2] = msgIn->bankCtrl;
 			dataOut[3] = msgIn->index;
-			dataOut[4] = msgIn->data;
+			dataOut[4] = msgIn->data >> 24;
+			dataOut[5] = msgIn->data >> 16;
+			dataOut[6] = msgIn->data >> 8;
+			dataOut[7] = msgIn->data;
 			break;
 		case MIDI2_VOICE_E::NotePitchbend:
 		case MIDI2_VOICE_E::Aftertouch:
 			dataOut[2] = msgIn->note;
-			dataOut[4] = msgIn->data;
+			dataOut[4] = msgIn->data >> 24;
+			dataOut[5] = msgIn->data >> 16;
+			dataOut[6] = msgIn->data >> 8;
+			dataOut[7] = msgIn->data;
 			break;
 		case MIDI2_VOICE_E::NoteOff:
 		case MIDI2_VOICE_E::NoteOn:
 			dataOut[2] = msgIn->note;
 			dataOut[3] = (uint8_t) msgIn->attrType;
-			dataOut[4] = msgIn->velocity;
-			dataOut[6] = msgIn->attrVal;
+			dataOut[4] = msgIn->velocity >> 8;
+			dataOut[5] = msgIn->velocity;
+			dataOut[6] = msgIn->attrVal >> 8;
+			dataOut[7] = msgIn->attrVal;
 			break;
 		case MIDI2_VOICE_E::CControl:
 			dataOut[2] = msgIn->controller;
-			dataOut[4] = msgIn->data;
+			dataOut[4] = msgIn->data >> 24;
+			dataOut[5] = msgIn->data >> 16;
+			dataOut[6] = msgIn->data >> 8;
+			dataOut[7] = msgIn->data;
 			break;
 		case MIDI2_VOICE_E::ProgChange:
 			dataOut[3] = msgIn->options;
@@ -166,7 +179,10 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_voice_t* msgIn){
 			break;
 		case MIDI2_VOICE_E::ChanPressure:
 		case MIDI2_VOICE_E::Pitchbend:
-			dataOut[4] = msgIn->data;
+			dataOut[4] = msgIn->data >> 24;
+			dataOut[5] = msgIn->data >> 16;
+			dataOut[6] = msgIn->data >> 8;
+			dataOut[7] = msgIn->data;
 			break;
 		case MIDI2_VOICE_E::NoteManage:
 			dataOut[2] = msgIn->note;
@@ -238,12 +254,9 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_com_t* msgIn, uint8_t ver){
 		default:
 			break;
 	}
-	if (ver == 2)
-	{
+	if (ver == 2){
 		return 4;
-	} 
-	else
-	{
+	} else {
 		return i;
 	}
 }
@@ -270,7 +283,7 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_util_t* msgIn){
 }
 
 uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_flexdata_t* msgIn){
-	dataOut[0] = 0xd << 4; // Message type
+	dataOut[0] = ((uint8_t) MIDI_MT_E::FlexData) << 4;
 	dataOut[0] |= msgIn->group & 0xf;
 	dataOut[1] = msgIn->channel & 0xf;
 	dataOut[1] |= (uint8_t) msgIn->destination << 4;
@@ -279,10 +292,10 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_flexdata_t* msgIn){
 	dataOut[3] = (uint8_t) msgIn->status;
 	switch (msgIn->status){
 		case MIDI2_FLEXDATA_E::SetTempo:
-			dataOut[4] = msgIn->tempo;
-			dataOut[5] = msgIn->tempo >> 8;
-			dataOut[6] = msgIn->tempo >> 16;
-			dataOut[7] = msgIn->tempo >> 24;
+			dataOut[4] = msgIn->tempo >> 24;
+			dataOut[5] = msgIn->tempo >> 16;
+			dataOut[6] = msgIn->tempo >> 8;
+			dataOut[7] = msgIn->tempo;
 			break;
 		case MIDI2_FLEXDATA_E::SetTimeSig:
 			dataOut[4] = msgIn->timeSig.numerator;
@@ -327,7 +340,7 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_flexdata_t* msgIn){
 }
 
 uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_stream_t* msgIn){
-	dataOut[0] = 0xf << 4;	// Message type
+	dataOut[0] = ((uint8_t) MIDI_MT_E::FlexData) << 4;
 	dataOut[0] |= ((uint8_t) msgIn->format << 2);
 	dataOut[0] |= ((uint16_t) msgIn->status >> 8) & 0x3;
 	dataOut[1] = (uint8_t) msgIn->status;
@@ -356,8 +369,8 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_stream_t* msgIn){
 			dataOut[7] = (msgIn->devID.sysexID >> 14) & 0x7f;
 			dataOut[8] = msgIn->devID.devFamily & 0x7f;
 			dataOut[9] = (msgIn->devID.devFamily >> 7) & 0x7f;
-			dataOut[10] = msgIn->devID.devFamily & 0x7f;
-			dataOut[11] = (msgIn->devID.devFamily >> 7) & 0x7f;
+			dataOut[10] = msgIn->devID.devModel & 0x7f;
+			dataOut[11] = (msgIn->devID.devModel >> 7) & 0x7f;
 			dataOut[12] = msgIn->devID.devVersion & 0x7f;
 			dataOut[13] = (msgIn->devID.devVersion >> 7) & 0x7f;
 			dataOut[14] = (msgIn->devID.devVersion >> 14) & 0x7f;
@@ -373,12 +386,12 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_stream_t* msgIn){
 		case MIDI2_STREAM_E::ConfigNotice:
 			dataOut[2] = msgIn->streamCon.protocol;
 			dataOut[3] = msgIn->streamCon.txJR & 0b1;
-			dataOut[3] |= (msgIn->streamCon.rxJR & 0b1) >> 1;
+			dataOut[3] |= (msgIn->streamCon.rxJR & 0b1) << 1;
 			break;
 		case MIDI2_STREAM_E::FunctionDiscovery:
 			dataOut[2] = msgIn->funcDiscovery.funcNum;
 			dataOut[3] = msgIn->funcDiscovery.reqInfo & 0b1;
-			dataOut[3] |= (msgIn->funcDiscovery.reqName >> 1) & 0b1;
+			dataOut[3] |= (msgIn->funcDiscovery.reqName & 0b1) << 1;
 		case MIDI2_STREAM_E::FunctionInfo:
 			dataOut[2] = msgIn->funcInfo.funcNum | (msgIn->funcInfo.isActive << 7);
 			dataOut[3] = (uint8_t) msgIn->funcInfo.direction;
@@ -586,7 +599,7 @@ void MIDI_C::Decode (char* data, uint8_t length){
 					case MIDI2_VOICE_E::AssNoteControl:
 						msgCurrent.voice2.note = inData[2];
 						msgCurrent.voice2.controller = inData[3];
-						msgCurrent.voice2.data = (uint32_t) inData[4];
+						msgCurrent.voice2.data = (inData[4] << 24) | (inData[5] << 16) | (inData[6] << 8) | inData[7];
 						break;
 					case MIDI2_VOICE_E::RegControl:
 					case MIDI2_VOICE_E::AssControl:
@@ -594,23 +607,23 @@ void MIDI_C::Decode (char* data, uint8_t length){
 					case MIDI2_VOICE_E::RelAssControl:
 						msgCurrent.voice2.bankCtrl = inData[2];
 						msgCurrent.voice2.index = inData[3];
-						msgCurrent.voice2.data = (uint32_t) inData[4];
+						msgCurrent.voice2.data = (inData[4] << 24) | (inData[5] << 16) | (inData[6] << 8) | inData[7];
 						break;
 					case MIDI2_VOICE_E::NotePitchbend:
 					case MIDI2_VOICE_E::Aftertouch:
 						msgCurrent.voice2.note = inData[2];
-						msgCurrent.voice2.data = (uint32_t) inData[4];
+						msgCurrent.voice2.data = (inData[4] << 24) | (inData[5] << 16) | (inData[6] << 8) | inData[7];
 						break;
 					case MIDI2_VOICE_E::NoteOff:
 					case MIDI2_VOICE_E::NoteOn:
 						msgCurrent.voice2.note = inData[2];
 						msgCurrent.voice2.attrType = (MIDI_ATTR_E) inData[3];
-						msgCurrent.voice2.velocity = (uint16_t) inData[4];
-						msgCurrent.voice2.attrVal = (uint16_t) inData[6]; 
+						msgCurrent.voice2.velocity = (inData[4] << 8) | inData[5];
+						msgCurrent.voice2.attrVal = (inData[6] << 8) | inData[7]; 
 						break;
 					case MIDI2_VOICE_E::CControl:
 						msgCurrent.voice2.controller = inData[2];
-						msgCurrent.voice2.data = (uint16_t) inData[4];
+						msgCurrent.voice2.data = (inData[4] << 24) | (inData[5] << 16) | (inData[6] << 8) | inData[7];
 						break;
 					case MIDI2_VOICE_E::ProgChange:
 						msgCurrent.voice2.options = inData[3];
@@ -619,7 +632,7 @@ void MIDI_C::Decode (char* data, uint8_t length){
 						break;
 					case MIDI2_VOICE_E::ChanPressure:
 					case MIDI2_VOICE_E::Pitchbend:
-						msgCurrent.voice2.data = (uint32_t) inData[4];
+					msgCurrent.voice2.data = (inData[4] << 24) | (inData[5] << 16) | (inData[6] << 8) | inData[7];
 						break;
 					case MIDI2_VOICE_E::NoteManage:
 						msgCurrent.voice2.note = inData[2];
@@ -683,7 +696,7 @@ void MIDI_C::Decode (char* data, uint8_t length){
 				struct {int8_t val : 4;} signedNibble;	// Make sure 4-bit value gets sign-extended		
 				switch (msgCurrent.flex.status){
 					case MIDI2_FLEXDATA_E::SetTempo:
-						msgCurrent.flex.tempo = (inData[7] << 24) | (inData[6] << 16) | (inData[5] << 8) | inData[4];
+						msgCurrent.flex.tempo = (inData[4] << 24) | (inData[5] << 16) | (inData[6] << 8) | inData[7];
 						break;
 					case MIDI2_FLEXDATA_E::SetTimeSig:
 						msgCurrent.flex.timeSig.numerator = inData[4];
