@@ -80,7 +80,7 @@ void MIDI_C::Convert(struct MIDI2_voice_t *msgOut, struct MIDI1_msg_t *msgIn){
 }
 
 void MIDI_C::Convert(struct MIDI1_msg_t *msgOut, struct MIDI2_com_t *msgIn){
-	
+	// Probably not needed, but TODO?
 }
 
 void MIDI_C::Convert(struct MIDI2_com_t *msgOut, struct MIDI1_msg_t *msgIn){
@@ -91,6 +91,36 @@ void MIDI_C::Convert(struct MIDI2_com_t *msgOut, struct MIDI1_msg_t *msgIn){
 		msgOut->songPos = msgIn->songPos;
 	} else if (msgIn->channel == 1) {
 		msgOut->songNum = msgIn->songNum;
+	}
+}
+
+void MIDI_C::Convert(struct MIDI2_data64_t *msgOut, struct MIDI1_msg_t *msgIn){
+	// Probably not needed, is always decoded to data64 directly
+	// Data field is not in struct, but maybe TODO??
+}
+
+void MIDI_C::Convert(struct MIDI_UMP_t *msgOut, struct MIDI1_msg_t *msgIn){
+	switch(msgIn->status){
+		case MIDI1_STATUS_E::NoteOff:
+		case MIDI1_STATUS_E::NoteOn:
+		case MIDI1_STATUS_E::Aftertouch:
+		case MIDI1_STATUS_E::CControl:
+		case MIDI1_STATUS_E::ProgChange:
+		case MIDI1_STATUS_E::ChanPressure:
+		case MIDI1_STATUS_E::Pitchbend:
+			Convert(&msgOut->voice2, msgIn);
+			break;
+		case MIDI1_STATUS_E::SysEx:
+			if ((msgIn->channel == 0)||(msgIn->channel == 7)){
+				// Data64
+				Convert(&msgOut->data64, msgIn);
+			} else {
+				// realtime
+				Convert(&msgOut->com, msgIn);
+			}
+			break;
+		default:
+			break;
 	}
 }
 

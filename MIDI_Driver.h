@@ -416,6 +416,8 @@ public:
 	static void Convert(struct MIDI2_voice_t *msgOut, struct MIDI1_msg_t *msgIn);
 	static void Convert(struct MIDI1_msg_t *msgOut, struct MIDI2_com_t *msgIn);
 	static void Convert(struct MIDI2_com_t *msgOut, struct MIDI1_msg_t *msgIn);
+	static void Convert(struct MIDI2_data64_t *msgOut, struct MIDI1_msg_t *msgIn);
+	static void Convert(struct MIDI_UMP_t *msgOut, struct MIDI1_msg_t *msgIn);
 	static uint8_t Encode(char* dataOut, struct MIDI2_voice_t* msgIn);
 	static uint8_t Encode(char* dataOut, struct MIDI2_data128_t* msgIn);
 	static uint8_t Encode(char* dataOut, struct MIDI2_data64_t* msgIn, uint8_t ver);
