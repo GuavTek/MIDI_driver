@@ -392,6 +392,7 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_stream_t* msgIn){
 			dataOut[2] = msgIn->funcDiscovery.funcNum;
 			dataOut[3] = msgIn->funcDiscovery.reqInfo & 0b1;
 			dataOut[3] |= (msgIn->funcDiscovery.reqName & 0b1) << 1;
+			break;
 		case MIDI2_STREAM_E::FunctionInfo:
 			dataOut[2] = msgIn->funcInfo.funcNum | (msgIn->funcInfo.isActive << 7);
 			dataOut[3] = (uint8_t) msgIn->funcInfo.direction;
@@ -490,7 +491,7 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI_UMP_t* msgIn, uint8_t ver){
 	}
 }
 
-void MIDI_C::Decode (char* data, uint8_t length){	
+void MIDI_C::Decode (char* data, uint8_t length){
 	if (MIDIVersion == 2) {
 		// MIDI 2.0 decoder
 		for (uint8_t l = 0; l < length; ){
