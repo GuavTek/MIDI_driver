@@ -418,7 +418,7 @@ public:
 	static void Convert(struct MIDI2_com_t *msgOut, struct MIDI1_msg_t *msgIn);
 	static void Convert(struct MIDI2_data64_t *msgOut, struct MIDI1_msg_t *msgIn);
 	static void Convert(struct MIDI_UMP_t *msgOut, struct MIDI1_msg_t *msgIn);
-	static uint8_t Encode(char* dataOut, struct MIDI2_voice_t* msgIn);
+	static uint8_t Encode(char* dataOut, struct MIDI2_voice_t* msgIn, uint8_t ver);
 	static uint8_t Encode(char* dataOut, struct MIDI2_data128_t* msgIn);
 	static uint8_t Encode(char* dataOut, struct MIDI2_data64_t* msgIn, uint8_t ver);
 	static uint8_t Encode(char* dataOut, struct MIDI2_com_t* msgIn, uint8_t ver);
@@ -466,6 +466,7 @@ protected:
 	uint16_t channelMask = 0xffff;
 	uint16_t groupMask = 0xffff;
 	char msgBuffer[8];
+	uint16_t prevBank;
 };
 
 #endif /* MIDI_2_DRIVER_H_ */

@@ -65,6 +65,7 @@ void MIDI_C::Convert(struct MIDI2_voice_t *msgOut, struct MIDI1_msg_t *msgIn){
 			break;
 		case MIDI1_STATUS_E::ProgChange:
 			msgOut->program = msgIn->instrument;
+			msgOut->options = 0;
 			break;
 		case MIDI1_STATUS_E::ChanPressure:
 			// 7 bit to 32 bit stuffing
@@ -123,7 +124,23 @@ void MIDI_C::Convert(struct MIDI_UMP_t *msgOut, struct MIDI1_msg_t *msgIn){
 	}
 }
 
-uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_voice_t* msgIn){
+uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_voice_t* msgIn, uint8_t ver){
+	if (ver == 1){
+		uint8_t i = 0;
+		MIDI1_msg_t tempMsg;
+		Convert(&tempMsg, msgIn);
+		if ((msgIn->status == MIDI2_VOICE_E::ProgChange) && (msgIn->options & 0b1)){
+			// Insert bank change
+			dataOut[i++] = ((uint8_t) MIDI1_STATUS_E::CControl << 4) | (msgIn->channel & 0x0f);
+			dataOut[i++] = 32;	// LSB
+			dataOut[i++] = msgIn->bankPC & 0x7f;
+			dataOut[i++] = ((uint8_t) MIDI1_STATUS_E::CControl << 4) | (msgIn->channel & 0x0f);
+			dataOut[i++] = 0;	// MSB
+			dataOut[i++] = (msgIn->bankPC >> 7) & 0x7f;
+		}
+		uint8_t j = Encode(&dataOut[i], tempMsg, 1);
+		return i + j;
+	}
 	dataOut[0] = (((uint8_t) MIDI_MT_E::Voice2) << 4) | (msgIn->group & 0x0f);
 	dataOut[1] = (((uint8_t) msgIn->status) << 4) | (msgIn->channel & 0x0f);
 	switch (msgIn->status){
@@ -472,13 +489,7 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI_UMP_t* msgIn, uint8_t ver){
 		case MIDI_MT_E::Data64:
 			return Encode(dataOut, &msgIn->data64, ver);
 		case MIDI_MT_E::Voice2:
-			if (ver == 2){
-				return Encode(dataOut, &msgIn->voice2);
-			} else {
-				MIDI1_msg_t msgConverted;
-				Convert(&msgConverted, &msgIn->voice2);
-				return Encode(dataOut, &msgConverted, 1);
-			}
+			return Encode(dataOut, &msgIn->voice2, ver);
 		case MIDI_MT_E::Data128:
 			if (ver == 2){
 				return Encode(dataOut, &msgIn->data128);
@@ -630,6 +641,9 @@ void MIDI_C::Decode (char* data, uint8_t length){
 						msgCurrent.voice2.options = inData[3];
 						msgCurrent.voice2.program = inData[4];
 						msgCurrent.voice2.bankPC = (inData[6] << 7) | inData[7];
+						if (msgCurrent.voice2.options & 0b1){
+							prevBank = 0xc000 | msgCurrent.voice2.bankPC;
+						}
 						break;
 					case MIDI2_VOICE_E::ChanPressure:
 					case MIDI2_VOICE_E::Pitchbend:
@@ -897,6 +911,15 @@ void MIDI_C::Decode (char* data, uint8_t length){
 						MIDI2_voice_t tempMsg2;
 						Convert(&tempMsg2, &tempMsg);
 						MIDI2_voice_p(&tempMsg2);
+						if (tempMsg.controller == 0){
+							prevBank &= 0xc07f;	// Delete MSB
+							prevBank |= 0xc000;
+							prevBank |= tempMsg.val << 7;
+						} else if (tempMsg.controller == 32){
+							prevBank &= 0xff80;	// Delete LSB
+							prevBank |= 0xc000;
+							prevBank |= tempMsg.val;
+						}
 					}
 					break;
 				case MIDI1_STATUS_E::ProgChange:
@@ -904,6 +927,9 @@ void MIDI_C::Decode (char* data, uint8_t length){
 					if (MIDI2_voice_p != 0) {
 						MIDI2_voice_t tempMsg2;
 						Convert(&tempMsg2, &tempMsg);
+						bool bankValid = prevBank >> 15;
+						tempMsg2.options |= bankValid;
+						tempMsg2.bankPC = (prevBank & 0x3fff) * bankValid;
 						MIDI2_voice_p(&tempMsg2);
 					}
 					break;
