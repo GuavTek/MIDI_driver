@@ -465,8 +465,8 @@ protected:
 	int8_t msgLength;
 	uint16_t channelMask = 0xffff;
 	uint16_t groupMask = 0xffff;
-	char msgBuffer[8];
 	uint16_t prevBank;
+	char msgBuffer[16];
 };
 
 #endif /* MIDI_2_DRIVER_H_ */
