@@ -138,7 +138,7 @@ uint8_t MIDI_C::Encode(char* dataOut, struct MIDI2_voice_t* msgIn, uint8_t ver){
 			dataOut[i++] = 0;	// MSB
 			dataOut[i++] = (msgIn->bankPC >> 7) & 0x7f;
 		}
-		uint8_t j = Encode(&dataOut[i], tempMsg, 1);
+		uint8_t j = Encode(&dataOut[i], &tempMsg, 1);
 		return i + j;
 	}
 	dataOut[0] = (((uint8_t) MIDI_MT_E::Voice2) << 4) | (msgIn->group & 0x0f);
