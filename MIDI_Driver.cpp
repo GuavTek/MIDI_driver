@@ -888,50 +888,51 @@ void MIDI_C::Decode (char* data, uint8_t length){
 			}
 			if (msgIndex == msgLength) {
 				// Decode buffered message
-				MIDI1_msg_t tempMsg;
-				tempMsg.channel = msgBuffer[0] & 0x0f;
-				if (!(channelMask & (1 << tempMsg.channel))) {
+				MIDI_UMP_t tempMsg;
+				tempMsg.type = MIDI_MT_E::Voice1;
+				tempMsg.voice1.channel = msgBuffer[0] & 0x0f;
+				if (!(channelMask & (1 << tempMsg.voice1.channel))) {
 					// Channel is masked out, skip this
 					msgIndex = 0;
 					msgLength = -1;
 					continue;
 				}
-				tempMsg.status = (MIDI1_STATUS_E) (msgBuffer[0] >> 4);
-				switch (tempMsg.status) {
+				tempMsg.voice1.status = (MIDI1_STATUS_E) (msgBuffer[0] >> 4);
+				switch (tempMsg.voice1.status) {
 				case MIDI1_STATUS_E::NoteOn:
 				case MIDI1_STATUS_E::NoteOff:
 				case MIDI1_STATUS_E::Aftertouch:
-					tempMsg.key = msgBuffer[1];
-					tempMsg.velocity = msgBuffer[2];
+					tempMsg.voice1.key = msgBuffer[1];
+					tempMsg.voice1.velocity = msgBuffer[2];
 					if (MIDI2_voice_p != 0) {
 						MIDI2_voice_t tempMsg2;
-						Convert(&tempMsg2, &tempMsg);
+						Convert(&tempMsg2, &tempMsg.voice1);
 						MIDI2_voice_p(&tempMsg2);
 					}
 					break;
 				case MIDI1_STATUS_E::CControl:
-					tempMsg.controller = msgBuffer[1];
-					tempMsg.val = msgBuffer[2];
+					tempMsg.voice1.controller = msgBuffer[1];
+					tempMsg.voice1.val = msgBuffer[2];
 					if (MIDI2_voice_p != 0) {
 						MIDI2_voice_t tempMsg2;
-						Convert(&tempMsg2, &tempMsg);
+						Convert(&tempMsg2, &tempMsg.voice1);
 						MIDI2_voice_p(&tempMsg2);
-						if (tempMsg.controller == 0){
+						if (tempMsg.voice1.controller == 0){
 							prevBank &= 0xc07f;	// Delete MSB
 							prevBank |= 0xc000;
-							prevBank |= tempMsg.val << 7;
-						} else if (tempMsg.controller == 32){
+							prevBank |= tempMsg.voice1.val << 7;
+						} else if (tempMsg.voice1.controller == 32){
 							prevBank &= 0xff80;	// Delete LSB
 							prevBank |= 0xc000;
-							prevBank |= tempMsg.val;
+							prevBank |= tempMsg.voice1.val;
 						}
 					}
 					break;
 				case MIDI1_STATUS_E::ProgChange:
-					tempMsg.instrument = msgBuffer[1];
+					tempMsg.voice1.instrument = msgBuffer[1];
 					if (MIDI2_voice_p != 0) {
 						MIDI2_voice_t tempMsg2;
-						Convert(&tempMsg2, &tempMsg);
+						Convert(&tempMsg2, &tempMsg.voice1);
 						bool bankValid = prevBank >> 15;
 						tempMsg2.options |= bankValid;
 						tempMsg2.bankPC = (prevBank & 0x3fff) * bankValid;
@@ -939,104 +940,102 @@ void MIDI_C::Decode (char* data, uint8_t length){
 					}
 					break;
 				case MIDI1_STATUS_E::ChanPressure:
-					tempMsg.pressure = msgBuffer[1];
+					tempMsg.voice1.pressure = msgBuffer[1];
 					if (MIDI2_voice_p != 0) {
 						MIDI2_voice_t tempMsg2;
-						Convert(&tempMsg2, &tempMsg);
+						Convert(&tempMsg2, &tempMsg.voice1);
 						MIDI2_voice_p(&tempMsg2);
 					}
 					break;
 				case MIDI1_STATUS_E::Pitchbend:
-					tempMsg.bend = msgBuffer[1] | (msgBuffer[2] << 7);
+					tempMsg.voice1.bend = msgBuffer[1] | (msgBuffer[2] << 7);
 					if (MIDI2_voice_p != 0) {
 						MIDI2_voice_t tempMsg2;
-						Convert(&tempMsg2, &tempMsg);
+						Convert(&tempMsg2, &tempMsg.voice1);
 						MIDI2_voice_p(&tempMsg2);
 					}
 					break;
 				case MIDI1_STATUS_E::SysEx:
-					if (tempMsg.channel == 0) {
-						MIDI2_data64_t msgData;
-						tempMsg.status = MIDI1_STATUS_E::Invalid;
-						msgData.numBytes = msgIndex - 1;
-						msgData.status = MIDI2_DATA64_E::Start;
-						
+					if (tempMsg.voice1.channel == 0) {
+						tempMsg.type = MIDI_MT_E::Data64;
+						tempMsg.data64.numBytes = msgIndex - 1;
+						tempMsg.data64.status = MIDI2_DATA64_E::Start;
 						for (uint8_t i = 0; i <= msgIndex; i++) {
 							if (msgBuffer[i] == 0xf7) {
 								// End of sysex
 								decodeState = NormalMIDI1;
-								msgData.numBytes--;
-								msgData.status = MIDI2_DATA64_E::Single;
+								tempMsg.data64.numBytes--;
+								tempMsg.data64.status = MIDI2_DATA64_E::Single;
 								break;
 							}
-							msgData.data[i] = msgBuffer[i];
+							tempMsg.data64.data[i] = msgBuffer[i];
 						}
 						if (MIDI2_data64_p != 0) {
-							MIDI2_data64_p(&msgData);
+							MIDI2_data64_p(&tempMsg.data64);
 							msgIndex = 0;
 							if (decodeState == NormalMIDI1) {
 								msgLength = -1;
 							}
-							return;
+							continue;
 						}
-					} else if (tempMsg.channel == 7) {
-						MIDI2_data64_t msgData;
-						tempMsg.status = MIDI1_STATUS_E::Invalid;
-						msgData.status = MIDI2_DATA64_E::End;
-						msgData.numBytes = 0;
+					} else if (tempMsg.voice1.channel == 7) {
+						tempMsg.type = MIDI_MT_E::Data64;
+						tempMsg.data64.status = MIDI2_DATA64_E::End;
+						tempMsg.data64.numBytes = 0;
 						decodeState = NormalMIDI1;
 						if (MIDI2_data64_p != 0) {
-							MIDI2_data64_p(&msgData);
+							MIDI2_data64_p(&tempMsg.data64);
 							msgIndex = 0;
 							if (decodeState == NormalMIDI1) {
 								msgLength = -1;
 							}
-							return;
+							continue;
 						}
 					} else {
 						// Common and realtime messages
-						if (tempMsg.channel == 2) {
-							tempMsg.songPos = msgBuffer[1] | (msgBuffer[2] << 7);
-						} else if (tempMsg.channel == 1) {
-							tempMsg.songNum = msgBuffer[1];
+						tempMsg.type = MIDI_MT_E::RealTime;
+						tempMsg.com.status = (enum MIDI2_COM_E) tempMsg.voice1.channel;
+						if (tempMsg.com.status == MIDI2_COM_E::SongSel) {
+							tempMsg.com.songNum = msgBuffer[1];
+						} else if (tempMsg.com.status == MIDI2_COM_E::SongPosPoint) {
+							tempMsg.com.songPos = msgBuffer[1] | (msgBuffer[2] << 7);
+						} else if (tempMsg.com.status == MIDI2_COM_E::TimeCode) {
+							tempMsg.com.timecode = msgBuffer[1] | (msgBuffer[2] << 7);
 						}
 						if (MIDI2_com_p != 0) {
-							MIDI2_com_t tempMsg2;
-							Convert(&tempMsg2, &tempMsg);
-							MIDI2_com_p(&tempMsg2);
+							MIDI2_com_p(&tempMsg.com);
 							msgIndex = 0;
 							if (decodeState == NormalMIDI1) {
 								msgLength = -1;
 							}
-							return;
+							continue;
 						}
 					}
 					break;
 				default:
 					if (decodeState == SysexMIDI1) {
-						MIDI2_data64_t msgData;
-						msgData.status = MIDI2_DATA64_E::Continue;
-						msgData.numBytes = msgIndex;
+						tempMsg.type = MIDI_MT_E::Data64;
+						tempMsg.data64.status = MIDI2_DATA64_E::Continue;
+						tempMsg.data64.numBytes = msgIndex;
 						for (uint8_t i = 0; i <= msgIndex; i++) {
 							if (msgBuffer[i] == 0xf7) {
 								// End of sysex
 								decodeState = NormalMIDI1;
-								msgData.numBytes--;
-								msgData.status = MIDI2_DATA64_E::End;
+								tempMsg.data64.numBytes--;
+								tempMsg.data64.status = MIDI2_DATA64_E::End;
 								break;
 							}
-							msgData.data[i] = msgBuffer[i];
+							tempMsg.data64.data[i] = msgBuffer[i];
 						}
 						if (MIDI2_data64_p != 0) {
-							MIDI2_data64_p(&msgData);
+							MIDI2_data64_p(&tempMsg.data64);
 							msgIndex = 0;
 							if (decodeState == NormalMIDI1) {
 								msgLength = -1;
 							}
-							return;
+							continue;
 						}
 					}
-					tempMsg.status = MIDI1_STATUS_E::Invalid;
 					break;
 				}
 				
@@ -1044,13 +1043,10 @@ void MIDI_C::Decode (char* data, uint8_t length){
 				if (decodeState == NormalMIDI1) {
 					msgLength = -1;
 				}
-				if (MIDI1_p != 0) {
-					MIDI1_p(&tempMsg);
-				} else if (MIDI_UMP_p != 0) {
-					MIDI_UMP_t tempMsg2;
-					tempMsg2.voice1 = tempMsg;
-					tempMsg2.type = MIDI_MT_E::Voice1;
-					MIDI_UMP_p(&tempMsg2);
+				if ((MIDI1_p != 0) && (tempMsg.type == MIDI_MT_E::Voice1)) {
+					MIDI1_p(&tempMsg.voice1);
+				} else if (MIDI_UMP_p != 0){
+					MIDI_UMP_p(&tempMsg);
 				}
 			}
 		}
